@@ -9,3 +9,7 @@ napcat/config/*.json
 ntqq/
 
 *.tar
+
+# Runtime data and deployment-generated entrypoint
+/data/
+/entrypoint.py
