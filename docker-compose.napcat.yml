@@ -5,6 +5,8 @@ services:
     image: ${NAPCAT_IMAGE:-mlikiowa/napcat-docker:latest}
     pull_policy: never
     container_name: duckbot-napcat
+    environment:
+      ACCOUNT: ${NAPCAT_ACCOUNT:-}
     ports:
       - "${NAPCAT_WEBUI_BIND:-127.0.0.1}:6099:6099"
     volumes:

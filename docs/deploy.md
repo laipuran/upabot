@@ -42,7 +42,7 @@ docker compose logs astrbot
 
 第一次才需要拉取镜像；日常启动只执行相应的 `up -d`。显式拉取使用 `--policy always`，覆盖文件中的 `pull_policy: never`，否则某些 Compose 版本会跳过下载。NapCat 可以先启动，核心就绪后会按反向 WS 的重连间隔连接；AstrBot 也能在 NapCat 未运行时独立启动以调试 WebUI 和插件。共享网络不随任一项目的 `down` 删除，只有确认两个项目都不用时才手动移除它。
 
-`NAPCAT_IMAGE` 可改为已验证的版本或 digest，以固定 QQ 接入版本。示例保留 `latest`，但核心项目和日常部署不会拉取或重建它。
+`NAPCAT_IMAGE` 可改为已验证的版本或 digest，以固定 QQ 接入版本。示例保留 `latest`，但核心项目和日常部署不会拉取或重建它。将已经登录过的 QQ 号填入 `.env` 的 `NAPCAT_ACCOUNT`，镜像会通过 `-q` 尝试使用缓存快速登录；留空时即使保留了账号数据，也可能进入扫码流程。首次登录或缓存失效仍需手机授权。
 
 ### 打开管理面板
 
