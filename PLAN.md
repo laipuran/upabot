@@ -1,84 +1,19 @@
-# DuckBot — QQ 机器人规划
+# DuckBot 当前架构
 
-## 架构概览
+项目已从 NoneBot2 迁到 AstrBot，QQ 接入继续使用原有 NapCat。迁移后只有一套应用框架，不运行双框架消息分流。
 
-| 组件 | 技术选型 | 说明 |
-|------|---------|------|
-| 协议层 | [NapCatQQ](https://github.com/NapNeko/NapCatQQ) (Docker) | QQ 协议实现，WebUI 扫码登录，ARM64 原生支持 |
-| 框架层 | NoneBot2 + OneBot V11 适配器 | 异步事件驱动，插件化架构，反向 WebSocket |
-| 转换逻辑 | 自实现 (httpx) | iTunes Search API 获取元数据 → 搜索网易云 |
-| 运行环境 | Docker Compose | 树莓派 (ARM64) / 开发机 (x86_64) |
-
-## 功能模块
-
-### 1. 音乐链接转换 (plugins/music_converter)
-- **触发方式**: 群聊/私聊中检测到 `music.apple.com` 链接
-- **流程**: Apple Music URL → 提取曲目元数据 → 搜索网易云音乐 → 返回网易云链接
-- **应对策略**: 若搜索不到精确匹配，返回最相似结果 + 置信度提示
-
-### 2. 可扩展架构
-- NoneBot2 插件化架构，新插件在 `src/duckbot/plugins/` 下创建目录
-- 注册方式（二选一）：
-  - 在 `bot.py` 中添加 `nonebot.load_plugin("duckbot.plugins.xxx")`
-  - 或在 `pyproject.toml` 的 `[tool.nonebot] plugins` 中添加
-
-## 目录结构
-
-```
-duckbot/
-├── docker-compose.yml       # 容器编排（含日志轮转）
-├── Dockerfile               # 构建镜像（双层缓存: 依赖→源码）
-├── PLAN.md                  # 本规划文档
-├── README.md                # 使用说明
-├── pyproject.toml           # 项目元数据 + Python 依赖
-├── .env                     # 环境变量（不提交）
-├── .env.example             # 环境变量模板
-├── .dockerignore            # Docker 构建上下文过滤
-├── scripts/
-│   └── build.sh             # PC 端交叉编译 → 部署到树莓派
-├── napcat/
-│   └── config/
-│       └── onebot11.json    # NapCat 反向 WS 配置（预置）
-├── ntqq/                    # QQ 登录态 + 聊天数据（Docker 挂载卷）
-├── src/duckbot/
-│   ├── bot.py               # 启动入口
-│   └── plugins/
-│       └── music_converter/
-│           └── __init__.py  # 插件定义 + 调用 duckran.top API 转换
-└── docs/
-    └── deploy.md            # 部署指南（NapCat 扫码流程）
+```text
+QQ ↔ NapCat ↔ OneBot v11 反向 WebSocket ↔ AstrBot
+                                         ├─ DuckBot 本地插件
+                                         └─ 内置 LLM / Agent（按需配置）
 ```
 
-## 添加依赖 / 新插件
+DuckBot 插件提供音乐转换、设备状态、Taboo 命令和关键词通知。确定性功能直接执行代码；监控先于命令和音乐转换运行，避免业务处理终止事件后漏掉群消息。业务命令和音乐转换会禁止本次默认模型调用，普通消息不会被插件统一终止。
 
-每次添加 Python 包或新插件时，需同步修改以下文件：
+本阶段不增加工具/MCP、音乐分享上下文注入、群摘要或历史数据库导入。旧 NoneBot 数据保留在原目录，不覆盖或自动迁移；Taboo 新订阅存入 `astrbot/data/plugin_data/astrbot_plugin_duckbot/taboo.sqlite3`，按平台实例隔离。群缓存只在内存中保存，每群最多 50 条、通知使用最近 10 条。
 
-### 添加 Python 包
-| 文件 | 修改内容 |
-|------|---------|
-| `pyproject.toml` | 在 `[project] dependencies` 中添加包名 + 版本约束 |
-| `Dockerfile` | 无需修改（自动读取 `pyproject.toml` 安装依赖） |
+部署直接使用固定版本 `soulter/astrbot:v4.29.3`，官方镜像支持 Linux amd64 和 arm64。插件源码以只读卷挂载到 AstrBot 插件目录，数据单独持久化；不用维护自制镜像或 QEMU 构建链。部署与首次配置见 [docs/deploy.md](docs/deploy.md)。
 
-> 注意：Dockerfile 的分层缓存依赖 `pyproject.toml`，新增依赖后首次构建会较慢（重新下载所有包），后续不改依赖则秒级完成。
+QQ 接入和核心代码采用独立生命周期：`docker-compose.napcat.yml` 的项目名为 `duckbot-napcat`，`docker-compose.yml` 的项目名为 `duckbot-core`。两个项目仅共享外部网络 `duckbot-qq`，不声明跨项目启动依赖，也不会在 `down` 时删除共享网络。NapCat 通过 `ws://astrbot:6199/ws` 连接核心，核心重建后自动重连。日常部署只重建核心，不拉取镜像、不停止 NapCat；升级必须显式执行。拆分旧项目时需要一次性重建容器以更换 Compose 项目标记，不代表每次部署都要重建 NapCat。
 
-### 添加新插件
-| 文件 | 修改内容 |
-|------|---------|
-| `src/duckbot/plugins/xxx/__init__.py` | 创建插件文件，定义事件响应器 |
-| `pyproject.toml` | 在 `[tool.nonebot] plugins` 中添加模块路径 |
-| `bot.py` | 或在此文件中添加 `nonebot.load_plugin("...")` |
-
-## 持久化与存储风险
-
-| 风险点 | 位置 | 应对措施 |
-|--------|------|---------|
-| Docker 日志 | 每个容器的 `json-file` 驱动 | ✅ 已配置 `max-size: 10m`, `max-file: 3` |
-| QQ 聊天记录 DB | `ntqq/.../nt_db/nt_msg.db` | 随使用增长，月级尺度可控 |
-| QQ 媒体缓存 | `ntqq/.../nt_data/` (头像/图片/文件) | 定期清理：`rm -rf ntqq/*/nt_temp/* ntqq/*/nt_data/avatar/*` |
-| 容器崩溃 | 进程异常退出 | ✅ `restart: unless-stopped` 自动恢复 |
-
-## 风险与应对
-
-- **QQ 账号风控**: NapCatQQ 使用官方 QQ 协议，风险低于第三方协议实现，但仍建议使用小号
-- **Apple Music 反爬**: 使用 User-Agent 轮换 + 请求限流
-- **网易云 API 不稳定**: 增加重试与降级策略
+新增功能应优先复用 AstrBot 的配置、消息和模型接口。只有明确需要自然语言调用时，才额外注册 Agent 工具；普通命令不应为了执行功能先调用模型。插件依赖同时记录在 `pyproject.toml` 和插件的 `requirements.txt`，更新后刷新 `uv.lock` 并运行单元测试。

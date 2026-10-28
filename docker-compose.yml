@@ -1,3 +1,5 @@
+name: duckbot-core
+
 x-logging: &default-logging
   driver: json-file
   options:
@@ -5,34 +7,32 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
-  duckbot:
-    image: duckbot:latest
-    container_name: duckbot
+  astrbot:
+    image: ${ASTRBOT_IMAGE:-soulter/astrbot:v4.29.3}
+    pull_policy: never
+    container_name: duckbot-astrbot
     env_file: .env
     environment:
-      - SQLALCHEMY_DATABASE_URL=sqlite+aiosqlite:////app/data/db.sqlite3
+      - TZ=Asia/Shanghai
     ports:
-      - "8080:8080"
+      - "${ASTRBOT_WEBUI_BIND:-127.0.0.1}:6185:6185"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ./data:/app/data
+      - ./astrbot/data:/AstrBot/data
+      - ./plugins/astrbot_plugin_duckbot:/AstrBot/data/plugins/astrbot_plugin_duckbot:ro
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
     logging: *default-logging
-    
+    networks:
+      - qq
+
     dns:
       - 223.5.5.5    # 阿里云 DNS
       - 119.29.29.29  # 腾讯云 DNS
 
-  napcat:
-    image: mlikiowa/napcat-docker:latest
-    container_name: duckbot-napcat
-    ports:
-      - "6099:6099"
-    volumes:
-      - ./napcat/config:/app/napcat/config
-      - ./ntqq:/app/.config/QQ
-    depends_on:
-      - duckbot
-    restart: unless-stopped
-    logging: *default-logging
+networks:
+  qq:
+    name: duckbot-qq
+    external: true

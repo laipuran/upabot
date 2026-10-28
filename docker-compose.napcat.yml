@@ -1,0 +1,25 @@
+name: duckbot-napcat
+
+services:
+  napcat:
+    image: ${NAPCAT_IMAGE:-mlikiowa/napcat-docker:latest}
+    pull_policy: never
+    container_name: duckbot-napcat
+    ports:
+      - "${NAPCAT_WEBUI_BIND:-127.0.0.1}:6099:6099"
+    volumes:
+      - ./napcat/config:/app/napcat/config
+      - ./ntqq:/app/.config/QQ
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - qq
+
+networks:
+  qq:
+    name: duckbot-qq
+    external: true

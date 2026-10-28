@@ -2,13 +2,13 @@
   "network": {
     "websocketClients": [
       {
-        "name": "duckbot",
+        "name": "astrbot",
         "enable": true,
-        "url": "ws://duckbot:8080/onebot/v11/ws",
+        "url": "ws://astrbot:6199/ws",
         "messagePostFormat": "array",
         "reportSelfMessage": false,
         "token": "",
-        "heartBeatInterval": 5000,
+        "heartInterval": 30000,
         "reconnectInterval": 5000
       }
     ]

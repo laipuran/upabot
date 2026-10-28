@@ -13,3 +13,6 @@ ntqq/
 # Runtime data and deployment-generated entrypoint
 /data/
 /entrypoint.py
+/astrbot/data/
+/.venv/
+/.ruff_cache/

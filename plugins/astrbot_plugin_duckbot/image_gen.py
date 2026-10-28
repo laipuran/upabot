@@ -75,7 +75,7 @@ def _render_sync(
 
     text_width = CARD_WIDTH - PADDING * 2
 
-    title_text = f"{group_name}" if group_name else "Taboo 通知"
+    title_text = group_name or "Taboo 通知"
     _, th = _text_size(draw, title_text, title_font)
     _, sh = _text_size(draw, "Ag", sender_font)
     _, fh = _text_size(draw, "Ag", footer_font)
