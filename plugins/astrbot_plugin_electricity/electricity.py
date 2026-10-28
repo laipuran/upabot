@@ -219,50 +219,59 @@ class Electricity:
     async def check_alerts(self, send):
         """One polling pass; no balance cache and no automatic refresh/retry."""
         async with self.poll_lock:
+            rooms = defaultdict(list)
             for key, snapshot in await self.store.all():
-                if snapshot.get("threshold") is None:
-                    continue
-                async with self.locks[key]:
-                    binding = await self.store.get(key)
-                    if (
-                        not binding
-                        or binding.get("threshold") is None
-                        or binding["version"] != snapshot["version"]
-                    ):
-                        continue
-                    binding["checked_at"] = datetime.now(ZoneInfo("Asia/Shanghai")).isoformat(
-                        timespec="seconds"
+                if snapshot.get("threshold") is not None:
+                    rooms[snapshot["room_id"]].append((key, snapshot))
+            for room_id, conversations in rooms.items():
+                # Fan out this response within one pass only. Next pass always queries again.
+                failure = None
+                try:
+                    data = await self.api.balance(room_id)
+                    balance = amount(data["balance"])
+                    if str(data["roomId"]) != room_id:
+                        raise ValueError("后端返回的房间不匹配。")
+                    day = self.parse_date(data["date"]).isoformat()
+                except (ApiError, ValueError, KeyError, TypeError) as exc:
+                    failure = (
+                        str(exc) if isinstance(exc, (ApiError, ValueError)) else "后端余额数据无效"
                     )
-                    try:
-                        data = await self.api.balance(binding["room_id"])
-                        balance = amount(data["balance"])
-                        if str(data["roomId"]) != binding["room_id"]:
-                            raise ValueError("后端返回的房间不匹配。")
-                        day = self.parse_date(data["date"]).isoformat()
-                        threshold = amount(binding["threshold"])
-                        if balance >= threshold:
-                            binding.update(notified=False, check_status="余额正常")
-                        elif not binding.get("notified", False):
-                            await send(
-                                key,
-                                f"低余额提醒：{binding['room_name']}\n"
-                                f"余额：{balance:.2f} 元（低于 {threshold:.2f} 元）\n"
-                                f"余额记录日期：{day}\n数据来自后端缓存，非实时余额。\n"
-                                "/elec alert off 可关闭提醒。",
-                            )
-                            binding.update(notified=True, check_status="低余额，已通知")
-                        else:
-                            binding["check_status"] = "持续低余额，已通知，不重复发送"
-                    except (ApiError, ValueError, KeyError, TypeError) as exc:
-                        binding["check_status"] = (
-                            str(exc)
-                            if isinstance(exc, (ApiError, ValueError))
-                            else "后端余额数据无效"
+                for key, snapshot in conversations:
+                    async with self.locks[key]:
+                        binding = await self.store.get(key)
+                        if (
+                            not binding
+                            or binding.get("threshold") is None
+                            or binding["version"] != snapshot["version"]
+                        ):
+                            continue
+                        binding["checked_at"] = datetime.now(ZoneInfo("Asia/Shanghai")).isoformat(
+                            timespec="seconds"
                         )
-                    except Exception:
-                        # Delivery failures don't consume the alert; try again next scheduled pass.
-                        binding["check_status"] = "通知失败，将在下次定期检查时重试"
-                    await self.store.save(key, binding)
+                        if failure:
+                            binding["check_status"] = failure
+                        else:
+                            try:
+                                threshold = amount(binding["threshold"])
+                                if balance >= threshold:
+                                    binding.update(notified=False, check_status="余额正常")
+                                elif not binding.get("notified", False):
+                                    await send(
+                                        key,
+                                        f"低余额提醒：{binding['room_name']}\n"
+                                        f"余额：{balance:.2f} 元（低于 {threshold:.2f} 元）\n"
+                                        f"余额记录日期：{day}\n数据来自后端缓存，非实时余额。\n"
+                                        "/elec alert off 可关闭提醒。",
+                                    )
+                                    binding.update(notified=True, check_status="低余额，已通知")
+                                else:
+                                    binding["check_status"] = "持续低余额，已通知，不重复发送"
+                            except ValueError as exc:
+                                binding["check_status"] = str(exc)
+                            except Exception:
+                                # Delivery failures don't consume the alert.
+                                binding["check_status"] = "通知失败，将在下次定期检查时重试"
+                        await self.store.save(key, binding)
 
     def parse_date(self, text: str) -> date:
         try:

@@ -372,3 +372,21 @@ class ElectricityTests(unittest.IsolatedAsyncioTestCase):
             reply = await self.app.command(key, "100", "balance")
         self.assertIn("暂时不可用", reply.text)
         self.assertNotIn("secret.internal", reply.text)
+
+    async def test_shared_room_alerts_use_one_backend_read_per_pass_not_a_balance_cache(self):
+        await self.bind("qq:GroupMessage:200")
+        await self.bind("qq:GroupMessage:201")
+        await self.app.command("qq:GroupMessage:200", "100", "alert on 10")
+        await self.app.command("qq:GroupMessage:201", "101", "alert on 20")
+        response = {"roomId": "50081022", "balance": 5, "date": "2026-10-27"}
+        self.responses[("GET", "/api/rooms/50081022/balance")] = (200, response)
+        send = AsyncMock()
+        await self.app.check_alerts(send)
+        self.assertEqual(send.await_count, 2)
+        self.assertEqual(sum(r.url.path.endswith("/balance") for r in self.requests), 1)
+        response["balance"] = 20
+        await self.app.check_alerts(send)
+        self.assertEqual(sum(r.url.path.endswith("/balance") for r in self.requests), 2)
+        response["balance"] = 5
+        await self.app.check_alerts(send)
+        self.assertEqual(send.await_count, 4)
