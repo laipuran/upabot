@@ -1,0 +1,8 @@
+name: astrbot_plugin_electricity
+display_name: Electricity
+desc: 通过 /电费 或 /elec 交互选房，按对话查询电费并发送低余额报警。
+version: v0.1.0
+author: duckran
+support_platforms:
+  - aiocqhttp
+astrbot_version: ">=4.29.3,<5"

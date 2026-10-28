@@ -5,10 +5,11 @@
 - 群聊、私聊自动将 Apple Music 链接转换为网易云音乐链接。
 - 私聊 `/upa status` 查询设备状态。
 - 私聊 `/taboo`（别名 `/tb`）注册关键词，群内命中时私信发送最近聊天记录图片。
+- `/电费`（别名 `/elec`）交互选房，按私聊/群聊绑定房间，查询电费并配置低余额报警。详见[电费插件](docs/electricity.md)。
 
 AI 聊天、模型、人格和唤醒方式由 AstrBot WebUI 管理；未配置模型时也可以使用上述功能。本阶段不额外实现音乐分享的 LLM 上下文。
 
-三个业务分别由 **Music Converter**、**Device Commands**、**Taboo** 插件提供，可以在 AstrBot 中独立启停和重载。各插件管理自己的依赖和资源；Taboo 数据库初始化失败不会阻止另外两个插件初始化。
+四个业务分别由 **Music Converter**、**Device Commands**、**Taboo**、**Electricity** 插件提供，可以在 AstrBot 中独立启停和重载，各自管理依赖和资源。电费插件仅保存对话绑定、报警设置和去重状态，余额数据直接查询后端，不另建缓存。
 
 ## 快速开始
 
@@ -65,10 +66,11 @@ napcat/config/           # NapCat 配置
 plugins/
   ├── astrbot_plugin_music_converter/ # 链接检测、音乐转换和 HTTP 资源
   ├── astrbot_plugin_device_commands/ # /upa 命令、设备查询和 HTTP 资源
-  └── astrbot_plugin_taboo/           # /tb、持久化、分群缓存和图片通知
+  ├── astrbot_plugin_taboo/           # /tb、持久化、分群缓存和图片通知
+  └── astrbot_plugin_electricity/     # /elec、交互选房、查询和低余额报警
 astrbot/data/            # AstrBot 运行数据（不提交）
 tests/                   # 单元测试
 scripts/deploy.sh        # 只同步并重建核心，NapCat 不受影响
 ```
 
-每个插件都有独立的 `main.py`、`metadata.yaml` 和 `requirements.txt`，不依赖另外两个插件的 Python 模块。
+每个插件都有独立的 `main.py`、`metadata.yaml` 和 `requirements.txt`，不依赖其他业务插件的 Python 模块。

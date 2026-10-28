@@ -78,7 +78,7 @@ ssh -N -L 6185:127.0.0.1:6185 -L 6099:127.0.0.1:6099 user@server
 
 ## 4. 验证插件功能，再配置 AI
 
-AstrBot 插件页应出现 **Music Converter**、**Device Commands**、**Taboo**，日志中不应有加载失败。Compose 分别将三个本地插件目录只读挂入标准插件路径，官方镜像包含它们所用的 HTTP、SQLite 和 Pillow 依赖，不需要自己在面板重复安装。三个插件可独立启停和重载，但仍运行在同一个 AstrBot 进程内。
+AstrBot 插件页应出现 **Music Converter**、**Device Commands**、**Taboo**、**Electricity**，日志中不应有加载失败。Compose 分别将四个本地插件目录只读挂入标准插件路径，官方镜像包含它们所用的 HTTP、SQLite 和 Pillow 依赖，不需要自己在面板重复安装。四个插件可独立启停和重载，但仍运行在同一个 AstrBot 进程内。电费后端地址、选房和报警配置见[电费插件指南](electricity.md)。
 
 保留全局唤醒前缀 `/`，验证：
 
