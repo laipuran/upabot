@@ -1,8 +1,0 @@
-name: astrbot_plugin_duckbot
-display_name: DuckBot
-desc: Apple Music 转网易云、Upa 设备状态查询、Taboo 关键词私信通知。
-version: v0.2.0
-author: duckran
-support_platforms:
-  - aiocqhttp
-astrbot_version: ">=4.29.3,<5"

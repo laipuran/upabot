@@ -78,7 +78,7 @@ ssh -N -L 6185:127.0.0.1:6185 -L 6099:127.0.0.1:6099 user@server
 
 ## 4. 验证插件功能，再配置 AI
 
-AstrBot 插件页应出现 **DuckBot**，日志中不应有加载失败。Compose 已将 `plugins/astrbot_plugin_duckbot/` 挂入标准插件路径，官方镜像包含插件所用的 HTTP、SQLite 和 Pillow 依赖，不需要自己在面板重复安装这个插件。
+AstrBot 插件页应出现 **Music Converter**、**Device Commands**、**Taboo**，日志中不应有加载失败。Compose 分别将三个本地插件目录只读挂入标准插件路径，官方镜像包含它们所用的 HTTP、SQLite 和 Pillow 依赖，不需要自己在面板重复安装。三个插件可独立启停和重载，但仍运行在同一个 AstrBot 进程内。
 
 保留全局唤醒前缀 `/`，验证：
 
@@ -89,7 +89,7 @@ AstrBot 插件页应出现 **DuckBot**，日志中不应有加载失败。Compos
 | 私聊 `/tb reg 鸭鸭`、`/tb list` | 注册和列出关键词，不调用 Agent |
 | 另一人在机器人所在群中提到“鸭鸭” | 注册者收到最近最多 10 条聊天记录图片；本人提及不通知 |
 | 私聊 `/tb off`、`/tb on`、`/tb unreg 鸭鸭` | 关闭、开启或删除订阅，开关和订阅在重启后保留 |
-| 普通群消息 | 不因本插件自动回复；AstrBot 自身是否回复取决于其唤醒与主动聊天配置 |
+| 普通群消息 | 不因这些业务插件自动回复；AstrBot 自身是否回复取决于其唤醒与主动聊天配置 |
 
 设备 API 默认通过 `host.docker.internal:5000/DeviceStatus` 访问宿主机。Compose 保留 `host-gateway` 映射；确认宿主机服务监听可达地址且防火墙允许 Docker 网络。错误回复不再回显内部 URL。
 
@@ -101,7 +101,17 @@ AstrBot 插件页应出现 **DuckBot**，日志中不应有加载失败。Compos
 
 ## 5. 调试和部署只操作核心
 
-插件代码在 Git 中维护并只读挂载，修改后可重载插件或重启 `astrbot`；不要在 WebUI 对此本地插件执行更新、卸载或写入操作。更换服务器时同时同步 `plugins/`，不能只复制 Compose。其他插件仍安装到正常的可写插件目录。
+插件代码在 Git 中维护并只读挂载，修改后可重载对应插件或重启 `astrbot`；不要在 WebUI 对这些本地插件执行更新、卸载或写入操作。更换服务器时同时同步 `plugins/`，不能只复制 Compose。其他插件仍安装到正常的可写插件目录。
+
+### 从合并插件升级
+
+同步新的核心 Compose 和三个插件源码，然后执行下一节的强制重建命令，或运行 `scripts/deploy.sh`。新的 Compose 不再挂载 `astrbot_plugin_duckbot`，而是分别挂载 `astrbot_plugin_music_converter`、`astrbot_plugin_device_commands`、`astrbot_plugin_taboo`。只执行 `restart` 不会替换挂载。
+
+Taboo 会继续读取 `astrbot/data/plugin_data/astrbot_plugin_duckbot/taboo.sqlite3`，因此从合并 AstrBot 插件升级不会清空订阅或开关，也不需要搬动数据库。不要把此数据目录误当成废弃代码删除；这与第 1 节“不导入 NoneBot 旧数据库”是两件不同的事。
+
+若曾手动安装过旧合并插件，应在启用三个新插件前先停用旧插件，不要通过卸载来清理其数据。正常的旧版只读挂载部署只需替换挂载；残留的空插件目录不会提供功能。如果配置曾按名称选择启用插件，需要将旧名称替换为三个新名称，确认当前机器人配置均已启用它们，避免旧插件和新插件同时回复或新插件被过滤。更新只操作核心，不重启 NapCat。
+
+### 重建核心
 
 本机插件源码已挂载，调试时只重启核心：
 

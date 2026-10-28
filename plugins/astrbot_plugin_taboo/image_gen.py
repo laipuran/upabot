@@ -1,3 +1,5 @@
+"""Render Taboo notifications as self-contained base64 images."""
+
 import asyncio
 import base64
 from datetime import datetime

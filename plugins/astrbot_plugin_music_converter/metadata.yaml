@@ -1,0 +1,8 @@
+name: astrbot_plugin_music_converter
+display_name: Music Converter
+desc: 自动将群聊和私聊中的 Apple Music 链接转换为网易云音乐链接。
+version: v0.2.0
+author: duckran
+support_platforms:
+  - aiocqhttp
+astrbot_version: ">=4.29.3,<5"

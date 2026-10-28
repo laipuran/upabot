@@ -1,3 +1,5 @@
+"""Keyword subscriptions, switches, and notification planning for Taboo."""
+
 import asyncio
 from dataclasses import dataclass
 from pathlib import Path

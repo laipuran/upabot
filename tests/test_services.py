@@ -2,7 +2,8 @@ import unittest
 
 import httpx
 
-from plugins.astrbot_plugin_duckbot.services import DeviceStatus, MusicConverter
+from plugins.astrbot_plugin_device_commands.device import DeviceStatus
+from plugins.astrbot_plugin_music_converter.music import MusicConverter
 
 
 class MusicConverterTests(unittest.IsolatedAsyncioTestCase):

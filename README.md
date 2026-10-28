@@ -8,6 +8,8 @@
 
 AI 聊天、模型、人格和唤醒方式由 AstrBot WebUI 管理；未配置模型时也可以使用上述功能。本阶段不额外实现音乐分享的 LLM 上下文。
 
+三个业务分别由 **Music Converter**、**Device Commands**、**Taboo** 插件提供，可以在 AstrBot 中独立启停和重载。各插件管理自己的依赖和资源；Taboo 数据库初始化失败不会阻止另外两个插件初始化。
+
 ## 快速开始
 
 ```bash
@@ -36,6 +38,8 @@ docker compose logs -f astrbot
 
 修改核心 Compose 或环境变量后，执行 `docker compose up -d --no-deps --force-recreate astrbot`。停止核心可用 `docker compose down`，不会停止 NapCat 或删除外部网络。核心离线期间不处理消息，也不保证补发；恢复后由 NapCat 重连，不需要因重启核心重新登录 QQ。
 
+从合并的 `astrbot_plugin_duckbot` 升级到三个插件时，挂载发生变化，必须重建核心，不能只执行 `restart`。Taboo 继续使用原 `astrbot/data/plugin_data/astrbot_plugin_duckbot/taboo.sqlite3`，已有订阅和开关不需要迁移或重建；完整注意事项见[部署指南](docs/deploy.md#从合并插件升级)。
+
 远程更新运行 `scripts/deploy.sh`：只同步核心源码并重建 AstrBot，不拉取镜像、不操作 NapCat。显式升级 AstrBot 使用 `scripts/deploy.sh --upgrade`。NapCat 的启动、停止和升级始终使用独立的 Compose 文件。
 
 ## 本地单元测试
@@ -58,13 +62,13 @@ docker-compose.yml        # duckbot-core：仅 AstrBot
 docker-compose.napcat.yml # duckbot-napcat：仅 QQ 接入
 .env                     # 环境变量
 napcat/config/           # NapCat 配置
-plugins/astrbot_plugin_duckbot/
-  ├── main.py            # AstrBot 命令与群消息监听
-  ├── services.py        # 音乐转换、设备 API
-  ├── taboo.py           # 关键词持久化、匹配和通知计划
-  ├── message_cache.py   # 分群缓存
-  └── image_gen.py       # 通知图片渲染
+plugins/
+  ├── astrbot_plugin_music_converter/ # 链接检测、音乐转换和 HTTP 资源
+  ├── astrbot_plugin_device_commands/ # /upa 命令、设备查询和 HTTP 资源
+  └── astrbot_plugin_taboo/           # /tb、持久化、分群缓存和图片通知
 astrbot/data/            # AstrBot 运行数据（不提交）
 tests/                   # 单元测试
 scripts/deploy.sh        # 只同步并重建核心，NapCat 不受影响
 ```
+
+每个插件都有独立的 `main.py`、`metadata.yaml` 和 `requirements.txt`，不依赖另外两个插件的 Python 模块。

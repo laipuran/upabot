@@ -1,0 +1,8 @@
+name: astrbot_plugin_taboo
+display_name: Taboo
+desc: 私聊管理关键词，群聊命中时向订阅者发送聊天记录图片。
+version: v0.2.0
+author: duckran
+support_platforms:
+  - aiocqhttp
+astrbot_version: ">=4.29.3,<5"

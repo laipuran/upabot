@@ -2,8 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from plugins.astrbot_plugin_duckbot.message_cache import ChatMessage
-from plugins.astrbot_plugin_duckbot.taboo import Taboo
+from plugins.astrbot_plugin_taboo.message_cache import ChatMessage
+from plugins.astrbot_plugin_taboo.taboo import Taboo
 
 
 class TabooTests(unittest.IsolatedAsyncioTestCase):

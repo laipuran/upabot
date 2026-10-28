@@ -1,3 +1,5 @@
+"""Recent group messages used only for Taboo notification images."""
+
 from collections import defaultdict, deque
 from dataclasses import dataclass
 

@@ -1,0 +1,8 @@
+name: astrbot_plugin_device_commands
+display_name: Device Commands
+desc: 通过 /upa status 在私聊中查询 Upa 设备状态。
+version: v0.2.0
+author: duckran
+support_platforms:
+  - aiocqhttp
+astrbot_version: ">=4.29.3,<5"
