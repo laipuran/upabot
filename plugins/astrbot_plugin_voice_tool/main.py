@@ -61,12 +61,18 @@ class VoiceToolPlugin(Star):
                 yield "语音文件不可用，请改用文字回复用户。"
                 return
             if truncated:
-                yield event.plain_result(f"文字过长，本次语音仅朗读前 {max_chars} 字。")
-            yield event.chain_result([Record(file=path)])
+                await event.send(event.plain_result(f"文字过长，本次语音仅朗读前 {max_chars} 字。"))
+            # The SDK permission wrapper exhausts tool generators before forwarding
+            # their last yield. Send explicitly so it cannot outlive this file.
+            await event.send(event.chain_result([Record(file=path)]))
+        except Exception:
+            self.logger.exception("Voice message send failed")
+            yield "语音发送失败，请改用文字回复用户。"
+            return
         finally:
-            # AstrBot consumes each yielded message before advancing the generator.
             if self.config.get("cleanup", True):
                 try:
                     audio.unlink(missing_ok=True)
                 except OSError:
                     self.logger.warning("Voice temporary file cleanup failed", exc_info=True)
+        yield "语音已发送给用户，无需重复发送相同内容。"

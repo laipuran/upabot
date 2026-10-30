@@ -14,8 +14,8 @@ sudo -n true
 "$UV" sync --locked --no-dev --group runtime --python 3.12
 mkdir -p astrbot/data/plugins
 touch astrbot/.astrbot
-# Only the explicitly deployed plugins are linked. QQ interaction remains opt-in.
-for plugin in music_converter device_commands taboo electricity voice_tool; do
+# Linking a plugin does not override its saved feature switches or allowlists.
+for plugin in music_converter device_commands taboo electricity voice_tool qq_reaction_listener; do
     name="astrbot_plugin_${plugin}"
     target="$ROOT/astrbot/data/plugins/$name"
     if [[ -d "$target" && ! -L "$target" ]]; then

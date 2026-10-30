@@ -1,6 +1,7 @@
 import asyncio
 import tempfile
 import unittest
+import wave
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
@@ -11,6 +12,8 @@ from astrbot.core.astr_agent_tool_exec import (
     FunctionToolExecutor,
     call_local_llm_tool,
 )
+from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import AiocqhttpMessageEvent
+from astrbot.core.provider.func_tool_manager import FunctionToolManager
 from astrbot.core.provider.register import llm_tools
 from support import FakeEvent
 
@@ -40,12 +43,13 @@ class VoiceToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tool.parameters["properties"]["text"]["type"], "string")
         self.assertEqual(set(tool.parameters["properties"]), {"text"})
 
-    async def test_session_provider_and_cleanup_after_yield(self):
+    async def test_session_provider_and_cleanup_after_send(self):
         generator = self.plugin.speak(self.event, "你好")
         result = await anext(generator)
-        self.assertIsInstance(result.chain[0], Record)
-        self.assertEqual(result.chain[0].file, str(self.audio))
-        self.assertTrue(self.audio.exists())
+        self.assertIn("语音已发送", result)
+        self.assertIsInstance(self.event.sent[0].chain[0], Record)
+        self.assertEqual(self.event.sent[0].chain[0].file, str(self.audio))
+        self.assertFalse(self.audio.exists())
         self.context.get_using_tts_provider_async.assert_awaited_once_with(
             self.event.unified_msg_origin
         )
@@ -63,9 +67,7 @@ class VoiceToolTests(unittest.IsolatedAsyncioTestCase):
             text="你好",
         )
         async for result in wrapper:
-            self.assertIsNone(result)
-            self.assertTrue(self.audio.exists())
-            await self.event.send(self.event.get_result())
+            self.assertIn("语音已发送", result)
         self.assertEqual(len(self.event.sent), 1)
         self.assertFalse(self.audio.exists())
 
@@ -108,6 +110,39 @@ class VoiceToolTests(unittest.IsolatedAsyncioTestCase):
         ]
         self.assertIn("文字回复", results[0].content[0].text)
         self.assertEqual(self.event.sent, [])
+
+    async def test_permission_guarded_executor_sends_real_audio_before_cleanup(self):
+        with wave.open(str(self.audio), "wb") as audio:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(24000)
+            audio.writeframes(b"\0\0" * 2400)
+        context = SimpleNamespace(context=SimpleNamespace(event=self.event), tool_call_timeout=60)
+        manager = FunctionToolManager()
+        manager.func_list.append(
+            FunctionTool(name="speak", description="test", parameters={}, handler=self.plugin.speak)
+        )
+        tool = manager.get_full_tool_set().get_tool("speak")
+        failures = []
+
+        async def send(message):
+            try:
+                await AiocqhttpMessageEvent._parse_onebot_json(message)
+                self.event.sent.append(message)
+            except Exception as error:
+                failures.append(type(error).__name__)
+                raise
+
+        self.event.send = send
+        self.plugin.config["max_chars"] = 2
+        with patch.object(manager, "_check_tool_permission", AsyncMock(return_value=None)):
+            with patch("astrbot.core.astr_agent_tool_exec.logger.error"):
+                async for _ in FunctionToolExecutor._execute_local(tool, context, text="你好呀"):
+                    pass
+        self.assertEqual(failures, [])
+        self.assertEqual(len(self.event.sent), 2)
+        self.assertIsInstance(self.event.sent[1].chain[0], Record)
+        self.assertFalse(self.audio.exists())
 
     async def test_closing_generator_cleans_file(self):
         generator = self.plugin.speak(self.event, "你好")
@@ -158,10 +193,10 @@ class VoiceToolTests(unittest.IsolatedAsyncioTestCase):
                 operation.side_effect = None
 
     async def test_truncation_sends_notice_and_only_synthesizes_prefix(self):
-        values = await self.collect("鸭" * 121)
+        await self.collect("鸭" * 121)
         self.provider.get_audio.assert_awaited_once_with("鸭" * 120)
-        self.assertIn("120", values[0].chain[0].text)
-        self.assertIsInstance(values[1].chain[0], Record)
+        self.assertIn("120", self.event.sent[0].chain[0].text)
+        self.assertIsInstance(self.event.sent[1].chain[0], Record)
 
     async def test_custom_limit(self):
         self.plugin.config["max_chars"] = 2
@@ -172,7 +207,21 @@ class VoiceToolTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(Path, "unlink", side_effect=PermissionError):
             with self.assertLogs(self.plugin.logger, level="WARNING"):
                 values = await self.collect()
-        self.assertIsInstance(values[0].chain[0], Record)
+        self.assertIn("语音已发送", values[0])
+
+    async def test_send_failure_cleans_audio_and_returns_fallback(self):
+        self.event.send = AsyncMock(side_effect=OSError("private audio path"))
+        with self.assertLogs(self.plugin.logger, level="ERROR"):
+            values = await self.collect()
+        self.assertIn("语音发送失败", values[0])
+        self.assertNotIn("private", values[0])
+        self.assertFalse(self.audio.exists())
+
+    async def test_cancellation_during_send_cleans_audio(self):
+        self.event.send = AsyncMock(side_effect=asyncio.CancelledError)
+        with self.assertRaises(asyncio.CancelledError):
+            await self.collect()
+        self.assertFalse(self.audio.exists())
 
     async def test_cancellation_is_not_swallowed(self):
         self.provider.get_audio.side_effect = asyncio.CancelledError

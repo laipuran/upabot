@@ -11,7 +11,7 @@ AI 聊天、模型、人格和唤醒方式由 AstrBot WebUI 管理；未配置�
 
 可选语音由 **Voice Tool** 插件注册 `speak(text)` 工具，使用当前会话的 TTS 提供商，音色仍在 WebUI 配置。配置、降级行为与验证方式见[语音工具](docs/voice-tool.md)。
 
-戳一戳和消息贴表情由本地待部署的 **QQ Interaction Memory** 提供：第一部分自动附加互动上下文、被戳当场触发文字回复；第二部分提供独立开关的戳人和贴表情聊天工具。表情表只在本地查找，不整表注入上下文。总开关默认关闭，未加入部署挂载，详见[QQ 互动指南](docs/qq-interactions.md)。
+戳一戳和消息贴表情由 **QQ Interaction Memory** 提供：第一部分自动附加互动上下文、被戳当场触发文字回复；第二部分提供独立开关的戳人和贴表情聊天工具。表情表只在本地查找，不整表注入上下文。部署脚本包含此插件，总开关默认关闭；当前服务器已显式开启第一部分，详见[QQ 互动指南](docs/qq-interactions.md)。
 
 四个业务分别由 **Music Converter**、**Device Commands**、**Taboo**、**Electricity** 插件提供，可以在 AstrBot 中独立启停和重载，各自管理依赖和资源。电费插件仅保存对话绑定、报警设置和去重状态，余额数据直接查询后端，不另建缓存。
 
@@ -72,7 +72,7 @@ plugins/
   ├── astrbot_plugin_taboo/           # /tb、持久化、分群缓存和图片通知
   ├── astrbot_plugin_electricity/     # /elec、交互选房、查询和低余额报警
   ├── astrbot_plugin_voice_tool/      # speak 工具、会话 TTS、语音发送和临时文件清理
-  └── astrbot_plugin_qq_reaction_listener/ # 互动上下文、被戳回复、戳/贴工具（待部署）
+  └── astrbot_plugin_qq_reaction_listener/ # 互动上下文、被戳回复、戳/贴工具
 astrbot/data/            # AstrBot 运行数据（不提交）
 tests/                   # 单元测试
 scripts/deploy.sh        # 远端拉取 main 并部署裸机核心

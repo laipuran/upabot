@@ -1,6 +1,6 @@
 # QQ 互动：上下文与动作工具
 
-插件目录与标识：`plugins/astrbot_plugin_qq_reaction_listener/`；显示名 **QQ Interaction Memory**，版本 `v0.4.0`。目前仅支持 QQ 群聊，基于真实 AstrBot 4.29.3 SDK 开发。
+插件目录与标识：`plugins/astrbot_plugin_qq_reaction_listener/`；显示名 **QQ Interaction Memory**，版本 `v0.4.0`。目前仅支持 QQ 群聊，基于真实 AstrBot 4.29.3 SDK 开发。裸机部署脚本已包含此插件；当前服务器已显式启用感知与被戳回复，主动互动工具仍关闭，待配置群白名单后单独开启。
 
 **默认关闭，未加入 Compose 挂载，未部署到机器人。** 本次没有修改设备、连接真实 QQ 或调用真实模型。
 

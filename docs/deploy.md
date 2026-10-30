@@ -22,7 +22,7 @@ bash scripts/install-host.sh
 
 安装脚本使用 `uv sync --locked --no-dev --group runtime --python 3.12`，uv 必要时下载 Python。运行依赖包含现有 Edge TTS 提供商所需的 `edge-tts`，宿主机还需 FFmpeg 和中文字体。无法直连 PyPI/GitHub 时，在安装命令的环境中配置可用的 `HTTPS_PROXY`，不要提交代理凭据。安装失败会中止，不会自动更新锁文件。树莓派首次冷启动可能超过一分钟，健康检查最多等待 180 次。
 
-插件以符号链接放到 `astrbot/data/plugins/`，目前部署 Music Converter、Device Commands、Taboo、Electricity、Voice Tool；QQ Interaction Memory 保持原先的待部署/显式启用状态，不会因为这次换部署方式自动开放互动行为。遇到同名非空目录时安装脚本拒绝覆盖，需人工核对。不要在 WebUI 更新或卸载这些本地插件。
+插件以符号链接放到 `astrbot/data/plugins/`，部署 Music Converter、Device Commands、Taboo、Electricity、Voice Tool、QQ Interaction Memory。安装脚本不覆盖已保存的开关与白名单；QQ 互动插件的发行默认总开关仍关闭，当前服务器按用户要求已显式启用感知与被戳回复，主动互动工具保持关闭。遇到同名非空目录时安装脚本拒绝覆盖，需人工核对。不要在 WebUI 更新或卸载这些本地插件。
 
 如果是新装 NapCat：按 `.env.example` 配置账号与管理面板，创建 `duckbot-qq` 外部网络，再使用 `docker-compose.napcat.yml` 显式拉取和启动。已有 NapCat 不执行这一步。
 
