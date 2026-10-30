@@ -7,8 +7,11 @@ AstrBot v4.29.3 和本仓库插件在宿主机的 Python 3.12 虚拟环境运行
 需要 Linux、systemd、Git、Docker Compose、Python venv，以及部署用户可用的 sudo。以下命令以部署用户运行，不要用 root 克隆仓库。
 
 ```bash
-python3 -m venv ~/.local/share/duckbot-tools
-~/.local/share/duckbot-tools/bin/pip install uv
+# 管理员安装官方 uv 到标准系统路径；先下载并检查安装脚本。
+curl -LsSf https://astral.sh/uv/install.sh -o /tmp/uv-install.sh
+less /tmp/uv-install.sh
+sudo env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh /tmp/uv-install.sh
+uv --version
 git clone https://github.com/laipuran/upabot.git
 cd upabot
 cp .env.example .env # 仅全新安装；已有 .env 不要覆盖

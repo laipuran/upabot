@@ -3,9 +3,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$(pwd -P)"
-UV="${UV_BIN:-$HOME/.local/share/duckbot-tools/bin/uv}"
-if command -v uv >/dev/null 2>&1; then UV="$(command -v uv)"; fi
-[[ -x "$UV" ]] || { echo "需要先安装 uv（可用 python3 -m venv 安装到 ~/.local/share/duckbot-tools）。" >&2; exit 1; }
+UV="${UV_BIN:-$(command -v uv || true)}"
+[[ -x "$UV" ]] || { echo "需要先安装 uv 到标准 PATH（推荐 /usr/local/bin/uv）。" >&2; exit 1; }
 [[ -f .env ]] || { echo "缺少 .env；不会自动生成或覆盖凭据。" >&2; exit 1; }
 if docker inspect duckbot-astrbot --format '{{.State.Running}}' 2>/dev/null | grep -qx true; then
     echo "旧 AstrBot 容器仍在运行。请先备份数据并完成 docs/deploy.md 中的首次迁移。" >&2
