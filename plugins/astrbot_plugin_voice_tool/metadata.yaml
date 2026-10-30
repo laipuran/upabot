@@ -1,0 +1,8 @@
+name: astrbot_plugin_voice_tool
+display_name: Voice Tool
+desc: 通过 speak 工具使用当前会话的 TTS 提供商发送语音。
+version: v0.1.0
+author: duckran
+support_platforms:
+  - aiocqhttp
+astrbot_version: ">=4.29.3,<5"

@@ -1,0 +1,17 @@
+{
+  "enabled": {
+    "type": "bool",
+    "description": "启用 speak 语音工具；关闭时向模型返回文字降级说明",
+    "default": true
+  },
+  "max_chars": {
+    "type": "int",
+    "description": "单次语音最多朗读的字符数（至少 1）；超出时截断并提醒用户",
+    "default": 120
+  },
+  "cleanup": {
+    "type": "bool",
+    "description": "发送完成后删除 provider 返回的临时音频文件",
+    "default": true
+  }
+}

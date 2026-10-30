@@ -24,6 +24,7 @@ services:
       - ./plugins/astrbot_plugin_device_commands:/AstrBot/data/plugins/astrbot_plugin_device_commands:ro
       - ./plugins/astrbot_plugin_taboo:/AstrBot/data/plugins/astrbot_plugin_taboo:ro
       - ./plugins/astrbot_plugin_electricity:/AstrBot/data/plugins/astrbot_plugin_electricity:ro
+      - ./plugins/astrbot_plugin_voice_tool:/AstrBot/data/plugins/astrbot_plugin_voice_tool:ro
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped

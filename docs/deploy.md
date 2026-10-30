@@ -80,6 +80,8 @@ ssh -N -L 6185:127.0.0.1:6185 -L 6099:127.0.0.1:6099 user@server
 
 AstrBot 插件页应出现 **Music Converter**、**Device Commands**、**Taboo**、**Electricity**，日志中不应有加载失败。Compose 分别将四个本地插件目录只读挂入标准插件路径，官方镜像包含它们所用的 HTTP、SQLite 和 Pillow 依赖，不需要自己在面板重复安装。四个插件可独立启停和重载，但仍运行在同一个 AstrBot 进程内。电费后端地址、选房和报警配置见[电费插件指南](electricity.md)。
 
+此外 Compose 挂载 **Voice Tool**，通过 `speak(text)` 工具使用当前会话的 TTS 提供商发送语音，无额外 Python 依赖。需要在 WebUI 配置 TTS 和音色，并允许模型调用该工具；详见[语音工具](voice-tool.md)。首次增加挂载需重建核心，不能只重启。
+
 保留全局唤醒前缀 `/`，验证：
 
 | 操作 | 预期 |
