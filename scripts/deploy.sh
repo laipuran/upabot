@@ -21,5 +21,9 @@ fi
 [[ "$(git branch --show-current)" == main ]] || { echo "远端必须在 main 分支" >&2; exit 1; }
 git fetch origin main
 git merge --ff-only origin/main
+[[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] || { echo "远端 main 含未推送提交，拒绝部署。" >&2; exit 1; }
+# Reuse the repository's optional download proxy for uv, not for the running bot.
+PROXY="$(git config --get http.proxy || true)"
+if [[ -n "$PROXY" ]]; then export HTTPS_PROXY="$PROXY"; fi
 bash scripts/install-host.sh
 REMOTE_SCRIPT

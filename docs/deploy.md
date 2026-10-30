@@ -44,6 +44,8 @@ docker network inspect duckbot-qq --format '{{json .IPAM.Config}}'
 ssh -N -L 6185:127.0.0.1:6185 -L 6099:127.0.0.1:6099 puranlai@192.168.31.119
 ```
 
+当前 `192.168.31.119` 按用户要求将 dashboard 和 OneBot 均监听 `0.0.0.0`，可在局域网直接访问 `http://192.168.31.119:6185`。这也会开放到宿主机其他网卡，需依靠访问控制与防火墙限制，不应转发到公网。
+
 不要无鉴权公开面板或 OneBot。设备、电费后端若在同一宿主机，`.env` 中分别使用 `http://127.0.0.1:5000/DeviceStatus`、`http://127.0.0.1:5051`。systemd 从 `.env` 注入变量，不要在其中使用 shell 命令或变量展开。
 
 ## 从旧 AstrBot 容器一次性迁移
@@ -72,6 +74,8 @@ sudo journalctl -u duckbot-astrbot -f
 ```
 
 远程目标由 `PI_USER`、`PI_HOST`、`PI_DIR` 覆盖，默认 `puranlai@192.168.31.119:/home/puranlai/Code/upabot`。脚本只接受干净的 main 分支，只 fast-forward 拉取，不自动推送、不覆盖凭据、不修改 NapCat。若旧核心容器还在运行则拒绝启动第二套核心。
+
+服务器需代理时，在该仓库设置 `git config http.proxy http://127.0.0.1:7890`（地址以实际代理为准）。Git 使用此代理拉取；部署脚本将同一地址仅用于 uv 下载，不注入 AstrBot 的 systemd 运行环境。
 
 只改插件代码或 `.env` 时，可以直接 `sudo systemctl restart duckbot-astrbot`；停止用 `sudo systemctl stop duckbot-astrbot`。更新依赖时修改 `pyproject.toml`、刷新并提交 `uv.lock`。不再通过拉取 AstrBot Docker 镜像升级。
 
