@@ -1,0 +1,11 @@
+{
+  "enabled": {"type": "bool", "description": "插件总开关", "default": false},
+  "context_enabled": {"type": "bool", "description": "第一部分：感知互动并自动附加短期上下文", "default": true},
+  "poke_reply_enabled": {"type": "bool", "description": "感知开启时，被戳立即触发当前人设文字回复，不额外等待", "default": true},
+  "context_ttl_seconds": {"type": "int", "description": "互动记忆有效秒数（10～3600）", "default": 600},
+  "poke_reply_cooldown_seconds": {"type": "int", "description": "连续戳的群级防重复秒数（1～10）；首次立即回复", "default": 3},
+  "tools_enabled": {"type": "bool", "description": "第二部分：普通聊天可调用戳人、贴表情工具，须填写群白名单", "default": false},
+  "tool_groups": {"type": "list", "description": "允许互动工具的群号字符串列表；空列表禁止所有群的工具发送", "default": []},
+  "tool_cooldown_seconds": {"type": "int", "description": "两个互动工具共享的群级发送间隔秒数（1～60），不限制正常文字聊天", "default": 3},
+  "tool_limit_per_minute": {"type": "int", "description": "每群每分钟互动工具发送尝试上限（1～120），失败也计入", "default": 12}
+}
