@@ -65,7 +65,7 @@ import urllib.request
 from pathlib import Path
 
 config_path = Path(sys.argv[1]) / "astrbot/data/cmd_config.json"
-for attempt in range(60):
+for attempt in range(180):
     if config_path.exists():
         break
     time.sleep(1)
@@ -80,7 +80,7 @@ if host == "0.0.0.0":
     host = "127.0.0.1"
 url = f"http://{host}:{dashboard.get('port', 6185)}/"
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-for attempt in range(60):
+for attempt in range(180):
     try:
         with opener.open(url, timeout=2) as response:
             if response.status == 200:

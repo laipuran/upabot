@@ -12,6 +12,7 @@ curl -LsSf https://astral.sh/uv/install.sh -o /tmp/uv-install.sh
 less /tmp/uv-install.sh
 sudo env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh /tmp/uv-install.sh
 uv --version
+sudo apt-get install ffmpeg fonts-wqy-microhei # 语音转换与中文图片字体
 git clone https://github.com/laipuran/upabot.git
 cd upabot
 cp .env.example .env # 仅全新安装；已有 .env 不要覆盖
@@ -19,7 +20,7 @@ cp .env.example .env # 仅全新安装；已有 .env 不要覆盖
 bash scripts/install-host.sh
 ```
 
-安装脚本使用 `uv sync --locked --no-dev --group runtime --python 3.12`，uv 必要时下载 Python。无法直连 PyPI/GitHub 时，在安装命令的环境中配置可用的 `HTTPS_PROXY`，不要提交代理凭据。安装失败会中止，不会自动更新锁文件。
+安装脚本使用 `uv sync --locked --no-dev --group runtime --python 3.12`，uv 必要时下载 Python。运行依赖包含现有 Edge TTS 提供商所需的 `edge-tts`，宿主机还需 FFmpeg 和中文字体。无法直连 PyPI/GitHub 时，在安装命令的环境中配置可用的 `HTTPS_PROXY`，不要提交代理凭据。安装失败会中止，不会自动更新锁文件。树莓派首次冷启动可能超过一分钟，健康检查最多等待 180 次。
 
 插件以符号链接放到 `astrbot/data/plugins/`，目前部署 Music Converter、Device Commands、Taboo、Electricity、Voice Tool；QQ Interaction Memory 保持原先的待部署/显式启用状态，不会因为这次换部署方式自动开放互动行为。遇到同名非空目录时安装脚本拒绝覆盖，需人工核对。不要在 WebUI 更新或卸载这些本地插件。
 
