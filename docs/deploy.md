@@ -1,162 +1,78 @@
-# 部署 AstrBot + NapCat
+# 部署：裸机 AstrBot + 容器 NapCat
 
-NapCat 常驻，AstrBot 与插件独立更新。`docker-compose.napcat.yml` 只管理 QQ 接入，默认 `docker-compose.yml` 只管理核心；即使对核心执行 `down`，也不会停止 NapCat。两个项目通过外部网络 `duckbot-qq` 通信，不声明启动依赖。
+AstrBot v4.29.3 和本仓库插件在宿主机的 Python 3.12 虚拟环境运行，由 `duckbot-astrbot.service` 管理。NapCat 继续使用现有容器、QQ 登录态和 `duckbot-qq` 网络。核心更新不重建、不升级、不重启 NapCat。
 
-核心直接运行官方 AstrBot v4.29.3 镜像，以只读卷挂载本地插件。默认只在宿主机回环地址开放管理面板，OneBot 6199 不发布到宿主机。两个项目设置 `pull_policy: never`，启动和调试不自动下载新镜像；首次安装或升级必须显式 `pull`。
+## 首次安装
 
-## 1. 准备配置，保护原有数据
-
-需要 Docker Compose 和一个可用的 QQ 账号。首次部署复制 `.env.example` 为 `.env`，设置 `DEVICE_STATUS_API_URL`。管理员、唤醒前缀、模型等在 AstrBot WebUI 配置，不再使用 NoneBot 的 `SUPERUSERS`、`NICKNAME`。
-
-从旧版切换时先备份旧 Compose、`.env`、`napcat/config/`、`ntqq/` 和 `data/`。保留原来的挂载目录和 QQ 登录态，不要重复启动第二个 NapCat。若从新 worktree 部署，运行目录本身不带这些被 Git 忽略的数据，必须明确复用原服务器的挂载目录，不能把空目录误当成旧登录态。
-
-旧版单项目中的容器不能直接交给新 Compose 项目管理。**第一次拆分需要一次 NapCat 重建**：在旧部署目录、旧 Compose 仍生效时执行 `docker compose down`（不要加 `-v`），再换入新的两个 Compose 文件，按下一节分别启动。这会有短暂离线，但不会删除上述绑定目录。已拆分的部署以后不再执行这一步，日常更新脚本也不会代你停止旧项目。不要通过 `--remove-orphans` 尝试跨项目接管容器。
-
-AstrBot 使用新的 `astrbot/data/`，不会打开或覆盖旧 `data/db.sqlite3`。本次不导入旧 Taboo 订阅，迁移后重新注册关键词即可。原 `.env` 可以保留设备 API 配置，按 `.env.example` 补充新变量，不要用示例覆盖已有密钥。
-
-## 2. 分别启动 QQ 接入和核心
-
-以下命令在同一个部署目录执行，两个文件通过各自的 `name` 使用不同项目名。不要把两个文件用 `-f ... -f ...` 合并，也不要用同一个 `-p` 或 `COMPOSE_PROJECT_NAME` 覆盖两个项目。
-
-先准备外部网络（仅创建一次；已存在则跳过）：
+需要 Linux、systemd、Git、Docker Compose、Python venv，以及部署用户可用的 sudo。以下命令以部署用户运行，不要用 root 克隆仓库。
 
 ```bash
-docker network create duckbot-qq
+python3 -m venv ~/.local/share/duckbot-tools
+~/.local/share/duckbot-tools/bin/pip install uv
+git clone https://github.com/laipuran/upabot.git
+cd upabot
+cp .env.example .env # 仅全新安装；已有 .env 不要覆盖
+# 编辑 .env，设置后端地址等；模型密钥在原 WebUI 中配置。
+bash scripts/install-host.sh
 ```
 
-独立启动 NapCat：
+安装脚本使用 `uv sync --locked --no-dev --group runtime --python 3.12`，uv 必要时下载 Python。无法直连 PyPI/GitHub 时，在安装命令的环境中配置可用的 `HTTPS_PROXY`，不要提交代理凭据。安装失败会中止，不会自动更新锁文件。
+
+插件以符号链接放到 `astrbot/data/plugins/`，目前部署 Music Converter、Device Commands、Taboo、Electricity、Voice Tool；QQ Interaction Memory 保持原先的待部署/显式启用状态，不会因为这次换部署方式自动开放互动行为。遇到同名非空目录时安装脚本拒绝覆盖，需人工核对。不要在 WebUI 更新或卸载这些本地插件。
+
+如果是新装 NapCat：按 `.env.example` 配置账号与管理面板，创建 `duckbot-qq` 外部网络，再使用 `docker-compose.napcat.yml` 显式拉取和启动。已有 NapCat 不执行这一步。
+
+## OneBot 连接与网络
+
+查看真实 Docker 网桥网关：
 
 ```bash
-docker compose -f docker-compose.napcat.yml pull --policy always napcat
-docker compose -f docker-compose.napcat.yml up -d napcat
-docker compose -f docker-compose.napcat.yml logs napcat
+docker network inspect duckbot-qq --format '{{json .IPAM.Config}}'
 ```
 
-独立启动核心：
+例如当前服务器为 `172.19.0.1`。AstrBot WebUI 的原 OneBot v11 实例保持原 ID、6199 端口和 token，监听网桥地址 `172.19.0.1`；NapCat 当前账号的原 WebSocket 客户端改成 `ws://172.19.0.1:6199/ws`。保留 `array` 消息格式、匹配的 token、关闭自身消息上报。只修改已有连接，不能新建重复连接。不要把 NapCat 容器内的 `127.0.0.1` 当作宿主机。
+
+在 NapCat WebUI 保存网络配置可热更新连接，无需重建容器或重新登录 QQ。仅改仓库模板 `napcat/config/onebot11.json` 不会改变当前账号的生效配置。若 Docker 网络日后重建、网关变化，需要同步更新两端地址；不要在仍使用时删除该网络。
+
+裸机 WebUI 的监听地址由 `astrbot/data/cmd_config.json` 的 dashboard 配置决定，不再由 Compose 的 `ASTRBOT_WEBUI_BIND` 控制。推荐绑定 `127.0.0.1:6185`，使用 SSH 隧道：
 
 ```bash
-docker compose pull --policy always astrbot
-docker compose up -d astrbot
-docker compose logs astrbot
+ssh -N -L 6185:127.0.0.1:6185 -L 6099:127.0.0.1:6099 puranlai@192.168.31.119
 ```
 
-第一次才需要拉取镜像；日常启动只执行相应的 `up -d`。显式拉取使用 `--policy always`，覆盖文件中的 `pull_policy: never`，否则某些 Compose 版本会跳过下载。NapCat 可以先启动，核心就绪后会按反向 WS 的重连间隔连接；AstrBot 也能在 NapCat 未运行时独立启动以调试 WebUI 和插件。共享网络不随任一项目的 `down` 删除，只有确认两个项目都不用时才手动移除它。
+不要无鉴权公开面板或 OneBot。设备、电费后端若在同一宿主机，`.env` 中分别使用 `http://127.0.0.1:5000/DeviceStatus`、`http://127.0.0.1:5051`。systemd 从 `.env` 注入变量，不要在其中使用 shell 命令或变量展开。
 
-`NAPCAT_IMAGE` 可改为已验证的版本或 digest，以固定 QQ 接入版本。示例保留 `latest`，但核心项目和日常部署不会拉取或重建它。将已经登录过的 QQ 号填入 `.env` 的 `NAPCAT_ACCOUNT`，镜像会通过 `-q` 尝试使用缓存快速登录；留空时即使保留了账号数据，也可能进入扫码流程。首次登录或缓存失效仍需手机授权。
+## 从旧 AstrBot 容器一次性迁移
 
-### 打开管理面板
+1. 确认本地代码已提交推送，服务器工作区干净，以 `git pull --ff-only` 拉取最新版。记录原容器镜像 ID、挂载、重启策略，以及 NapCat 当前连接配置。不要操作 NapCat 生命周期。
+2. 先安装 uv 并同步锁定运行依赖，准备好裸机运行环境，减少停机时间。
+3. 仅停止旧核心：`docker stop duckbot-astrbot`。禁用其自动重启：`docker update --restart=no duckbot-astrbot`。停止后备份 `.env`、完整 `astrbot/data/`、`napcat/config/`，备份存入权限为 700 的时间戳目录；SQLite 必须在停止核心后备份。
+4. 旧镜像可能生成 root 所有的文件，将 `astrbot/data` 的所有权交给部署用户；不要更改 NapCat 登录态或其他服务数据。
+5. 保留原 `astrbot/data`，把 dashboard host 改为回环地址、OneBot host 改为真实网桥网关。保持平台实例 ID、模型、人格、token、数据库和插件配置不变。修改 `.env` 中原 `host.docker.internal` 后端地址为宿主机地址。
+6. 运行 `bash scripts/install-host.sh`。旧只读插件挂载留下的空目录会替换为符号链接；非空目录不自动覆盖。保留 `plugin_data/astrbot_plugin_duckbot`，Taboo 继续读其中的旧库。
+7. 在 NapCat 面板热更新原客户端 URL，确认裸机进程稳定、WebUI 正常、插件加载、OneBot 重连成功。测试不会自动发 QQ 消息或调用模型，实际业务回复需人工验收。
+8. 成功后可删除已停止的旧容器：`docker rm duckbot-astrbot`，然后仅对原先记录的、已无容器使用的核心镜像执行 `docker image rm <原镜像ID>`。不执行全局 `docker system prune`、卷清理或 NapCat/OpenWrt 镜像清理。
 
-本机访问：
+核心离线期间不保证消息补发；订阅、会话和模型配置复用原数据，但进程内最近聊天缓存会清空。旧 NoneBot `data/` 不导入也不删除。
 
-- AstrBot：`http://127.0.0.1:6185`。首次密码从启动日志获取，登录后修改。
-- NapCat：`http://127.0.0.1:6099/webui/`。按当前版本的日志获取登录 token；首次登录 QQ 时扫码，已有有效登录态不需要另建实例。
-
-远程服务器使用隧道（替换用户名和地址）：
+## 日常更新
 
 ```bash
-ssh -N -L 6185:127.0.0.1:6185 -L 6099:127.0.0.1:6099 user@server
+# 开发机：先提交、推送 main，再部署
+git push origin main
+bash scripts/deploy.sh
+
+# 服务器查看状态、日志
+sudo systemctl status duckbot-astrbot
+sudo journalctl -u duckbot-astrbot -f
 ```
 
-然后在自己电脑访问上面的本机地址。确需内网直接访问时，可在 `.env` 修改 `ASTRBOT_WEBUI_BIND`、`NAPCAT_WEBUI_BIND` 为目标内网地址，并配置防火墙；不要无鉴权公网开放。
+远程目标由 `PI_USER`、`PI_HOST`、`PI_DIR` 覆盖，默认 `puranlai@192.168.31.119:/home/puranlai/Code/upabot`。脚本只接受干净的 main 分支，只 fast-forward 拉取，不自动推送、不覆盖凭据、不修改 NapCat。若旧核心容器还在运行则拒绝启动第二套核心。
 
-## 3. 建立唯一的 OneBot 连接
+只改插件代码或 `.env` 时，可以直接 `sudo systemctl restart duckbot-astrbot`；停止用 `sudo systemctl stop duckbot-astrbot`。更新依赖时修改 `pyproject.toml`、刷新并提交 `uv.lock`。不再通过拉取 AstrBot Docker 镜像升级。
 
-在 AstrBot WebUI 的机器人页面创建 **OneBot v11** 实例：
+## 回退
 
-- 选择固定实例 ID，例如 `duckbot_qq`；Taboo 订阅按此实例隔离，之后不要随意改 ID。
-- 监听地址 `0.0.0.0`、端口 `6199`，设置一枚足够随机的反向 WebSocket token，启用实例。
+部署失败时不要启动双核心。先停裸机服务，再恢复停机备份中的配置、原 `.env` 和 NapCat 连接地址。仍保留旧容器时可恢复它的重启策略并启动；已清理时使用 `docker-compose.legacy.yml`（显式拉取原镜像后）重建旧核心。插件符号链接指向宿主机绝对路径，容器回退前需要还原旧插件空挂载点/目录，避免悬空链接。不得同时运行裸机服务与旧核心容器，也不要删除数据来解决启动错误。
 
-在 NapCat 当前账号的网络配置中，编辑原有 WebSocket 客户端：
-
-- URL：`ws://astrbot:6199/ws`。
-- 消息格式：`array`。
-- token：与 AstrBot 一致，不是 NapCat 面板登录 token。
-- 关闭自身消息上报，保存并启用。
-- 删除或禁用原先指向 `ws://duckbot:8080/onebot/v11/ws` 的连接，不保留两套应用处理消息。
-
-仓库的 `napcat/config/onebot11.json` 仅为默认模板，token 留空以免提交凭据。已登录账号通常使用 `onebot11_<QQ号>.json`，修改模板不保证改变生效配置；以 WebUI 中当前账号的连接为准，并在使用前为两端配置匹配的 token。
-
-## 4. 验证插件功能，再配置 AI
-
-AstrBot 插件页应出现 **Music Converter**、**Device Commands**、**Taboo**、**Electricity**，日志中不应有加载失败。Compose 分别将四个本地插件目录只读挂入标准插件路径，官方镜像包含它们所用的 HTTP、SQLite 和 Pillow 依赖，不需要自己在面板重复安装。四个插件可独立启停和重载，但仍运行在同一个 AstrBot 进程内。电费后端地址、选房和报警配置见[电费插件指南](electricity.md)。
-
-此外 Compose 挂载 **Voice Tool**，通过 `speak(text)` 工具使用当前会话的 TTS 提供商发送语音，无额外 Python 依赖。需要在 WebUI 配置 TTS 和音色，并允许模型调用该工具；详见[语音工具](voice-tool.md)。首次增加挂载需重建核心，不能只重启。
-
-保留全局唤醒前缀 `/`，验证：
-
-| 操作 | 预期 |
-| --- | --- |
-| 群聊或私聊分享 Apple Music 链接 | 直接回复网易云链接，不调用 Agent |
-| 私聊 `/upa status` | 返回设备状态，不调用 Agent |
-| 私聊 `/tb reg 鸭鸭`、`/tb list` | 注册和列出关键词，不调用 Agent |
-| 另一人在机器人所在群中提到“鸭鸭” | 注册者收到最近最多 10 条聊天记录图片；本人提及不通知 |
-| 私聊 `/tb off`、`/tb on`、`/tb unreg 鸭鸭` | 关闭、开启或删除订阅，开关和订阅在重启后保留 |
-| 普通群消息 | 不因这些业务插件自动回复；AstrBot 自身是否回复取决于其唤醒与主动聊天配置 |
-
-设备 API 默认通过 `host.docker.internal:5000/DeviceStatus` 访问宿主机。Compose 保留 `host-gateway` 映射；确认宿主机服务监听可达地址且防火墙允许 Docker 网络。错误回复不再回显内部 URL。
-
-关键词通知使用 OneBot 主动私信，接收者是否可达受 QQ 好友关系和平台风控限制；发送失败会记录日志，不会阻止音乐转换或 AI 聊天。通知图片以 base64 发送，不依赖两个容器共享图片路径。
-
-基础功能不需要 LLM Key。接着可在 AstrBot 配置模型提供商、模型和人格，并为当前机器人选择相应配置。推荐先采用额外 LLM 前缀，例如全局 `/` 加 LLM 前缀 `chat`，以 `/chat 问题` 聊天；@、引用、私聊唤醒也应检查，不要认为只改前缀就关闭了所有其他入口。默认先不开主动回复、代码执行和高权限 MCP，并填写实际群/用户白名单（空列表不表示拒绝所有人）。
-
-音乐分享历史没有额外写入模型上下文，也没有禁用 AstrBot 本来支持的上下文能力。本次不为它新增历史采集或注入逻辑。
-
-## 5. 调试和部署只操作核心
-
-插件代码在 Git 中维护并只读挂载，修改后可重载对应插件或重启 `astrbot`；不要在 WebUI 对这些本地插件执行更新、卸载或写入操作。更换服务器时同时同步 `plugins/`，不能只复制 Compose。其他插件仍安装到正常的可写插件目录。
-
-### 从合并插件升级
-
-同步新的核心 Compose 和三个插件源码，然后执行下一节的强制重建命令，或运行 `scripts/deploy.sh`。新的 Compose 不再挂载 `astrbot_plugin_duckbot`，而是分别挂载 `astrbot_plugin_music_converter`、`astrbot_plugin_device_commands`、`astrbot_plugin_taboo`。只执行 `restart` 不会替换挂载。
-
-Taboo 会继续读取 `astrbot/data/plugin_data/astrbot_plugin_duckbot/taboo.sqlite3`，因此从合并 AstrBot 插件升级不会清空订阅或开关，也不需要搬动数据库。不要把此数据目录误当成废弃代码删除；这与第 1 节“不导入 NoneBot 旧数据库”是两件不同的事。
-
-若曾手动安装过旧合并插件，应在启用三个新插件前先停用旧插件，不要通过卸载来清理其数据。正常的旧版只读挂载部署只需替换挂载；残留的空插件目录不会提供功能。如果配置曾按名称选择启用插件，需要将旧名称替换为三个新名称，确认当前机器人配置均已启用它们，避免旧插件和新插件同时回复或新插件被过滤。更新只操作核心，不重启 NapCat。
-
-### 重建核心
-
-本机插件源码已挂载，调试时只重启核心：
-
-```bash
-docker compose restart astrbot
-docker compose logs -f astrbot
-```
-
-`restart` 不应用 Compose 或环境变量变化；这类变化使用：
-
-```bash
-docker compose up -d --no-deps --force-recreate astrbot
-```
-
-停止核心使用 `docker compose down`，NapCat 仍然保持登录。核心离线期间命令和通知暂停，不能假定 NapCat 会缓存或重放这些消息；核心恢复后连接自动重建。Taboo 订阅保留，但进程内最近聊天缓存会清空。
-
-远程部署使用 `scripts/deploy.sh`（原 `build.sh`），通过 `PI_USER`、`PI_HOST`、`PI_DIR` 指定目标。它只上传核心 Compose、插件与环境示例，不上传 NapCat Compose、实际 `.env`、QQ 配置、登录态或数据库。目标必须已经按前文完成项目拆分和共享网络准备。
-
-- `scripts/deploy.sh`：不拉取镜像，使用目标机器已有的 AstrBot 镜像，强制重建核心以加载新代码和环境变量。
-- `scripts/deploy.sh --upgrade`：先仅拉取 AstrBot 镜像，再重建核心。更换版本时应先在目标 `.env` 修改 `ASTRBOT_IMAGE`。
-
-脚本不执行全项目 `down`、`pull` 或 `--remove-orphans`，也不调用 NapCat 项目的任何生命周期命令。检测到旧单项目配置时会拒绝执行，要求先完成一次性拆分。新机器没有本地核心镜像时，先显式拉取或使用 `--upgrade`。
-
-## 6. 单独维护 NapCat，以及回退
-
-NapCat 的维护必须显式指定自己的 Compose 文件：
-
-```bash
-# 主动重启 QQ 接入（普通核心调试不要执行）
-docker compose -f docker-compose.napcat.yml restart napcat
-
-# 明确升级 QQ 接入：先在 .env 选择 NAPCAT_IMAGE，再执行
-docker compose -f docker-compose.napcat.yml pull --policy always napcat
-docker compose -f docker-compose.napcat.yml up -d --no-deps --force-recreate napcat
-```
-
-升级 NapCat 会造成 QQ 短暂离线，保留数据也不能保证永远不要求重新登录。只有这类主动维护或宿主机/容器自身故障才涉及 QQ 接入重启，不是更新核心代码的必需步骤。
-
-只回退核心代码或 AstrBot 镜像时，恢复对应版本并重建核心，不动 NapCat。若回到旧单项目 NoneBot 部署，先分别停止这两个新项目，恢复备份的旧 Compose 和 NapCat 连接，再启动旧部署，避免同名容器冲突；旧 `data/` 和 `ntqq/` 不应被删除。新 Taboo 订阅不会自动回写旧数据库。
-
-## 官方接口依据
-
-- [AstrBot Docker 部署](https://docs.astrbot.app/deploy/astrbot/docker.html)
-- [AstrBot OneBot v11 接入](https://docs.astrbot.app/platform/aiocqhttp.html)
-- [AstrBot 插件与事件传播](https://docs.astrbot.app/dev/star/guides/listen-message-event.html)
-- [NapCat 网络配置](https://napneko.github.io/config/basic)
+NapCat 的显式维护仍仅使用 `docker compose -f docker-compose.napcat.yml ...`，与核心部署分开。

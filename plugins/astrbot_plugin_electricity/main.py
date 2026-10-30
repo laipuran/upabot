@@ -32,8 +32,7 @@ class ElectricityPlugin(Star):
         if not math.isfinite(self.interval) or self.interval < 60:
             raise ValueError("ELEC_ALERT_INTERVAL_SECONDS 必须为不小于60的秒数")
         self.client = httpx.AsyncClient(
-            base_url=os.getenv("ELEC_API_BASE_URL", "http://host.docker.internal:5051").rstrip("/")
-            + "/",
+            base_url=os.getenv("ELEC_API_BASE_URL", "http://127.0.0.1:5051").rstrip("/") + "/",
             timeout=60.0,
         )
         try:

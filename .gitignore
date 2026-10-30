@@ -16,3 +16,6 @@ ntqq/
 /astrbot/data/
 /.venv/
 /.ruff_cache/
+/astrbot/.astrbot
+/astrbot/astrbot.lock
+/backups/

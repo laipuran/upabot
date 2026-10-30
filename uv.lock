@@ -864,6 +864,9 @@ dev = [
     { name = "astrbot" },
     { name = "ruff" },
 ]
+runtime = [
+    { name = "astrbot" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -877,6 +880,7 @@ dev = [
     { name = "astrbot", specifier = "==4.29.3" },
     { name = "ruff", specifier = "==0.15.22" },
 ]
+runtime = [{ name = "astrbot", specifier = "==4.29.3" }]
 
 [[package]]
 name = "et-xmlfile"

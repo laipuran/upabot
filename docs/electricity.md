@@ -44,10 +44,10 @@
 ## 部署配置
 
 ```dotenv
-ELEC_API_BASE_URL=http://host.docker.internal:5051
+ELEC_API_BASE_URL=http://127.0.0.1:5051
 ELEC_ALERT_INTERVAL_SECONDS=3600
 ```
 
-间隔最小60秒。宿主机上的 `localhost:5051` 不等于 AstrBot 容器中的 localhost；Compose 已设置 `host.docker.internal` 映射，后端需监听容器可达地址。也可以把地址改成容器能够访问的 `http://192.168.31.1:5051`，不要在插件中直连 WhuApi。
+间隔最小60秒。AstrBot 现在在宿主机运行，同机后端可以直接使用 `127.0.0.1:5051`；其他服务器使用其可达地址。不要在插件中直连 WhuApi。
 
-Compose 已添加独立插件挂载，首次安装需要重建 AstrBot 核心来应用新挂载；不重启 NapCat，不需要新镜像。更新与数据备份方式沿用[部署指南](deploy.md)。
+裸机安装脚本链接独立插件，更新后重启 AstrBot systemd 服务，不重启 NapCat。更新与数据备份方式见[部署指南](deploy.md)。

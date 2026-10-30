@@ -1,3 +1,4 @@
+# Legacy container runtime: rollback only. Do not start alongside the systemd service.
 name: duckbot-core
 
 x-logging: &default-logging

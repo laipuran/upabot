@@ -16,8 +16,8 @@ Electricity 通过 `/电费` 或 `/elec` 交互选房，每个私聊或群聊只
 
 本阶段增加独立的 Voice Tool `speak(text)` 和本地待部署的 QQ Interaction Memory，不增加其他工具/MCP、音乐分享上下文注入、群摘要或历史数据库导入。Voice Tool 复用当前会话的 TTS provider，失败时向模型返回文字降级说明，音色在 WebUI 管理，详见 [docs/voice-tool.md](docs/voice-tool.md)。QQ Interaction Memory 提供短期互动上下文、被戳当场文字回复，以及独立开关和群白名单的戳/贴表情工具；默认关闭，未加入部署挂载，详见 [docs/qq-interactions.md](docs/qq-interactions.md)。旧 NoneBot 数据保留在原目录，不覆盖或自动迁移；Taboo 继续使用合并插件原有的 `astrbot/data/plugin_data/astrbot_plugin_duckbot/taboo.sqlite3`，按平台实例隔离。目录名称是数据兼容约定，不代表旧插件仍需加载。群缓存只在内存中保存，每群最多 50 条、通知使用最近 10 条。
 
-部署直接使用固定版本 `soulter/astrbot:v4.29.3`，官方镜像支持 Linux amd64 和 arm64。插件源码以只读卷挂载到 AstrBot 插件目录，数据单独持久化；不用维护自制镜像或 QEMU 构建链。部署与首次配置见 [docs/deploy.md](docs/deploy.md)。
+AstrBot 在宿主机以 Python 3.12 和固定 SDK v4.29.3 运行，依赖由 `uv.lock` 锁定，systemd 管理生命周期；本地插件以符号链接加载，复用 `astrbot/data`。部署与首次配置见 [docs/deploy.md](docs/deploy.md)。
 
-QQ 接入和核心代码采用独立生命周期：`docker-compose.napcat.yml` 的项目名为 `duckbot-napcat`，`docker-compose.yml` 的项目名为 `duckbot-core`。两个项目仅共享外部网络 `duckbot-qq`，不声明跨项目启动依赖，也不会在 `down` 时删除共享网络。NapCat 通过 `ws://astrbot:6199/ws` 连接核心，核心重建后自动重连。日常部署只重建核心，不拉取镜像、不停止 NapCat；升级必须显式执行。拆分旧项目时需要一次性重建容器以更换 Compose 项目标记，不代表每次部署都要重建 NapCat。
+QQ 接入和核心代码采用独立生命周期：`docker-compose.napcat.yml` 保留项目 `duckbot-napcat`，核心为宿主机 `duckbot-astrbot.service`。NapCat 通过 `duckbot-qq` 网桥网关连接裸机 OneBot 6199，核心重启后自动重连。日常部署由服务器 fast-forward 拉取云端 main，安装锁定依赖并重启核心，不操作 NapCat。旧容器配置保留为 `docker-compose.legacy.yml`，仅用于回退。
 
 新增功能应优先复用 AstrBot 的配置、消息和模型接口。只有明确需要自然语言调用时，才额外注册 Agent 工具；普通命令不应为了执行功能先调用模型。插件依赖同时记录在 `pyproject.toml` 和各自的 `requirements.txt`，更新后刷新 `uv.lock` 并运行单元测试。

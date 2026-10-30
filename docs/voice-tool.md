@@ -4,10 +4,10 @@
 
 ## 配置与部署
 
-Compose 已挂载插件。更新后需要重建核心（仅重启不会增加新挂载）：
+裸机安装脚本会链接插件。首次安装或依赖变化时运行：
 
 ```bash
-docker compose up -d --no-deps --force-recreate astrbot
+bash scripts/install-host.sh
 ```
 
 也可以按现有流程运行 `scripts/deploy.sh`，不影响 NapCat。
@@ -22,7 +22,7 @@ docker compose up -d --no-deps --force-recreate astrbot
 
 插件使用 `event.unified_msg_origin` 选择当前会话的 TTS 提供商，等待提供商查询和合成最多 30 秒。无提供商、超时、空路径、文件不存在或合成异常，均向模型返回字符串，要求改用文字回复；不会返回空结果。实际文字降级仍由模型完成。
 
-音频必须是 AstrBot 容器内可读的本地文件。`cleanup=true` 适用于返回独立临时文件的 provider；如果 provider 使用需要保留的共享缓存文件，应关闭清理。清理失败只记日志，不影响已发送语音。平台发送失败由 AstrBot 工具执行器记录，不自动重试。
+音频必须是 AstrBot 裸机进程可读的本地文件。OneBot 适配器将语音转换为 base64 发送，不要求 NapCat 共享这个路径。`cleanup=true` 适用于返回独立临时文件的 provider；如果 provider 使用需要保留的共享缓存文件，应关闭清理。清理失败只记日志，不影响已发送语音。平台发送失败由 AstrBot 工具执行器记录，不自动重试。
 
 ## 验证
 

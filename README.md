@@ -18,34 +18,33 @@ AI 聊天、模型、人格和唤醒方式由 AstrBot WebUI 管理；未配置�
 ## 快速开始
 
 ```bash
-cp .env.example .env
+cp .env.example .env # 仅首次安装，不覆盖已有密钥
 docker network create duckbot-qq
 docker compose -f docker-compose.napcat.yml pull --policy always napcat
 docker compose -f docker-compose.napcat.yml up -d napcat
-docker compose pull --policy always astrbot
-docker compose up -d
+bash scripts/install-host.sh
 ```
 
-按[部署指南](docs/deploy.md)打开本机 6185 / 6099 面板，配置 AstrBot OneBot 实例和 NapCat 的 `ws://astrbot:6199/ws` 连接。管理端口默认只绑定回环地址，远程使用 SSH 隧道。
+先安装 uv 并准备 `.env`，完整步骤见[部署指南](docs/deploy.md)。AstrBot 及插件在宿主机运行，由 `duckbot-astrbot.service` 管理；NapCat 保留在原容器。NapCat 连接宿主机 Docker 网桥上的 OneBot 服务，例如 `ws://172.19.0.1:6199/ws`（以实际网络网关为准）。
 
-两个 Compose 项目独立运行：`docker-compose.napcat.yml` 只管理 NapCat，默认 `docker-compose.yml` 只管理 AstrBot，共用外部网络 `duckbot-qq`。网络已存在时不要重复创建。两个项目都不会在启动时自动拉取镜像。
+`docker-compose.napcat.yml` 只管理 NapCat，`duckbot-qq` 网络需保留。旧核心配置改名为 `docker-compose.legacy.yml`，仅供回退，不要与裸机服务同时启动。
 
-从旧单项目部署迁移时，需要按[部署指南](docs/deploy.md)进行一次性容器重建，保留 QQ 登录态和旧数据库；不导入旧 Taboo 订阅。不要直接覆盖现有 `.env` 或 NapCat 账号配置。
+从旧核心容器迁移时，按[部署指南](docs/deploy.md)先备份、停止旧核心，再复用 `astrbot/data`；不重建 NapCat，不覆盖账号配置。
 
 ## 调试只重启核心
 
-修改本机挂载的插件代码后：
+修改插件代码或环境变量后：
 
 ```bash
-docker compose restart astrbot
-docker compose logs -f astrbot
+sudo systemctl restart duckbot-astrbot
+sudo journalctl -u duckbot-astrbot -f
 ```
 
-修改核心 Compose 或环境变量后，执行 `docker compose up -d --no-deps --force-recreate astrbot`。停止核心可用 `docker compose down`，不会停止 NapCat 或删除外部网络。核心离线期间不处理消息，也不保证补发；恢复后由 NapCat 重连，不需要因重启核心重新登录 QQ。
+停止核心使用 `sudo systemctl stop duckbot-astrbot`，不会停止 NapCat。核心离线期间不处理消息，也不保证补发；恢复后由 NapCat 重连，不需要重新登录 QQ。
 
-从合并的 `astrbot_plugin_duckbot` 升级到三个插件时，挂载发生变化，必须重建核心，不能只执行 `restart`。Taboo 继续使用原 `astrbot/data/plugin_data/astrbot_plugin_duckbot/taboo.sqlite3`，已有订阅和开关不需要迁移或重建；完整注意事项见[部署指南](docs/deploy.md#从合并插件升级)。
+Taboo 继续使用原 `astrbot/data/plugin_data/astrbot_plugin_duckbot/taboo.sqlite3`，已有订阅和开关不需要迁移。不要删除这个兼容数据目录。
 
-远程更新运行 `scripts/deploy.sh`：只同步核心源码并重建 AstrBot，不拉取镜像、不操作 NapCat。显式升级 AstrBot 使用 `scripts/deploy.sh --upgrade`。NapCat 的启动、停止和升级始终使用独立的 Compose 文件。
+最新代码先提交并推送，再运行 `bash scripts/deploy.sh`：远端以 fast-forward 拉取 `origin/main`，按 `uv.lock` 安装依赖并重启裸机核心；工作区有改动则拒绝覆盖。不会操作 NapCat。AstrBot 升级需显式修改依赖版本与锁文件，不再使用 `--upgrade` 或镜像标签。
 
 ## 本地单元测试
 
@@ -63,7 +62,7 @@ uv run ruff format --check .
 ## 项目结构
 
 ```
-docker-compose.yml        # duckbot-core：仅 AstrBot
+docker-compose.legacy.yml # 旧核心容器配置，仅供回退
 docker-compose.napcat.yml # duckbot-napcat：仅 QQ 接入
 .env                     # 环境变量
 napcat/config/           # NapCat 配置
@@ -76,7 +75,8 @@ plugins/
   └── astrbot_plugin_qq_reaction_listener/ # 互动上下文、被戳回复、戳/贴工具（待部署）
 astrbot/data/            # AstrBot 运行数据（不提交）
 tests/                   # 单元测试
-scripts/deploy.sh        # 只同步并重建核心，NapCat 不受影响
+scripts/deploy.sh        # 远端拉取 main 并部署裸机核心
+scripts/install-host.sh  # uv 锁定依赖、链接插件、安装 systemd 服务
 ```
 
 每个插件都有独立的 `main.py`、`metadata.yaml` 和 `requirements.txt`，不依赖其他业务插件的 Python 模块。

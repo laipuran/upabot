@@ -16,7 +16,7 @@ class DeviceCommandsPlugin(Star):
         self.client = httpx.AsyncClient(timeout=10.0)
         self.device = DeviceStatus(
             self.client,
-            os.getenv("DEVICE_STATUS_API_URL", "http://host.docker.internal:5000/DeviceStatus"),
+            os.getenv("DEVICE_STATUS_API_URL", "http://127.0.0.1:5000/DeviceStatus"),
         )
 
     async def terminate(self):
