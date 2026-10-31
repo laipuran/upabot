@@ -52,6 +52,10 @@ ssh -N -L 6185:127.0.0.1:6185 -L 6099:127.0.0.1:6099 puranlai@192.168.31.119
 
 当前服务器已备份配置并将两份原 `skills_like` 配置改为 `full`。此方式仍保留工具调用，只是不做两阶段工具描述压缩；不修改已安装 SDK，也不改变人格、模型、TTS 或互动插件开关。`tests/test_agent_runtime.py` 用真实 SDK 验证 `full` 模式下无工具请求的普通/流式回复和统计初始化，无外部模型调用。升级框架并验证修复前，不要切回 `skills_like`。
 
+同一测试文件还用 `expectedFailure` 记录 `skills_like + None/空 ToolSet` 应有的正确行为；SDK 修好后会成为 `unexpected success`，提醒移除标记并重测绕过方案。根目录可运行 `python -m unittest tests.test_agent_runtime -v`。测试同时检查人格、历史、当前用户消息以及统计字段，避免只补 `stats` 却仍遗漏上下文。
+
+上游正确修法是把 `reset()` 中 `skills_like` 的 schema 转换改为仅在工具非空时执行，然后继续共同初始化流程；不能仅把 `AgentStats()` 提前或放进 `__init__`，否则消息初始化仍会被跳过，复用 runner 时也可能留下上一轮统计。此仓库不自动修改虚拟环境内的 SDK，也不自动向上游提交补丁。
+
 不要无鉴权公开面板或 OneBot。设备、电费后端若在同一宿主机，`.env` 中分别使用 `http://127.0.0.1:5000/DeviceStatus`、`http://127.0.0.1:5051`。systemd 从 `.env` 注入变量，不要在其中使用 shell 命令或变量展开。
 
 ## 从旧 AstrBot 容器一次性迁移

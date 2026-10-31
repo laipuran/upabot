@@ -4,7 +4,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-from support import FakeEvent
+from tests.support import FakeEvent
 
 # isort: split
 from astrbot.api.message_components import At, Reply

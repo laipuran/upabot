@@ -53,11 +53,14 @@ Taboo 继续使用原 `astrbot/data/plugin_data/astrbot_plugin_duckbot/taboo.sql
 ```bash
 uv sync --locked --python 3.12
 uv run python -m unittest discover -s tests -v
+uv run python -m unittest tests.test_agent_runtime -v
 uv run ruff check .
 uv run ruff format --check .
 ```
 
 测试替换外部 HTTP 和 QQ 发送，不启动机器人、不调用模型、不连接真实 QQ。测试的 AstrBot 运行文件放在 `/tmp/opencode`（存在时）或系统临时目录，不使用实际部署数据。
+
+Agent 兼容测试中有两条标记为 `expectedFailure` 的上游缺陷用例：AstrBot 4.29.3 的 `skills_like` 在无工具时没有完成初始化。SDK 修复后会报 `unexpected success`，届时应删除标记、重新评估线上 `full` 绕过配置；不是要求上游永远保留这个缺陷。
 
 ## 项目结构
 

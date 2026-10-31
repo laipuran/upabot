@@ -2,7 +2,10 @@ import unittest
 from unittest.mock import Mock, patch
 
 import httpx
-from support import FakeEvent
+
+from tests.support import FakeEvent
+
+# isort: split
 
 from plugins.astrbot_plugin_music_converter.main import MusicConverterPlugin
 

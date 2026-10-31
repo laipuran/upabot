@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
-from support import FakeEvent
+from tests.support import FakeEvent
 
 # support isolates AstrBot's runtime before SDK imports.
 # isort: split

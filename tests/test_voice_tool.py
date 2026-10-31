@@ -6,6 +6,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
+from tests.support import FakeEvent
+
+# support isolates runtime data before SDK imports.
+# isort: split
 from astrbot.api.message_components import Record
 from astrbot.core.astr_agent_tool_exec import (
     FunctionTool,
@@ -15,7 +19,6 @@ from astrbot.core.astr_agent_tool_exec import (
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import AiocqhttpMessageEvent
 from astrbot.core.provider.func_tool_manager import FunctionToolManager
 from astrbot.core.provider.register import llm_tools
-from support import FakeEvent
 
 from plugins.astrbot_plugin_voice_tool.main import VoiceToolPlugin
 

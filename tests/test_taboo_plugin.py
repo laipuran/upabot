@@ -3,7 +3,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from support import FakeEvent
+from tests.support import FakeEvent
+
+# isort: split
 
 from plugins.astrbot_plugin_taboo.main import TabooPlugin
 from plugins.astrbot_plugin_taboo.taboo import Taboo

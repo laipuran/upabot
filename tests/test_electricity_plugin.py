@@ -3,7 +3,10 @@ import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
-from support import FakeEvent
+
+from tests.support import FakeEvent
+
+# isort: split
 
 from plugins.astrbot_plugin_electricity.main import ElectricityPlugin
 
@@ -64,7 +67,7 @@ class ElectricityPluginTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(self.client.is_closed)
 
     async def test_chinese_and_english_aliases_are_registered_and_disable_agent(self):
-        from test_plugin_interactions import dispatch
+        from tests.test_plugin_interactions import dispatch
 
         for root in ("elec", "电费"):
             event = FakeEvent(root + " help", group="200")

@@ -3,7 +3,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 import httpx
-from support import FakeEvent
+
+from tests.support import FakeEvent
 
 # support must isolate runtime directories before importing AstrBot.
 # isort: split
