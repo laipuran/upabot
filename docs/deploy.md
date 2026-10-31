@@ -46,6 +46,12 @@ ssh -N -L 6185:127.0.0.1:6185 -L 6099:127.0.0.1:6099 puranlai@192.168.31.119
 
 当前 `192.168.31.119` 按用户要求将 dashboard 和 OneBot 均监听 `0.0.0.0`，可在局域网直接访问 `http://192.168.31.119:6185`。这也会开放到宿主机其他网卡，需依靠访问控制与防火墙限制，不应转发到公网。
 
+### AstrBot 4.29.3 的无工具请求兼容性
+
+当前版本的本地 Agent 请使用 `agent_runner.config.misc.tool_schema_mode="full"`，包括默认配置和机器人关联的配置。`skills_like` 模式在工具集合为空（如 QQ 被戳的纯文字回复）时，会从 `ToolLoopAgentRunner.reset()` 提前返回，跳过消息上下文和 `stats` 初始化；处理模型回复时就会报 `'ToolLoopAgentRunner' object has no attribute 'stats'`。这不是模型密钥或 TTS 配置错误。
+
+当前服务器已备份配置并将两份原 `skills_like` 配置改为 `full`。此方式仍保留工具调用，只是不做两阶段工具描述压缩；不修改已安装 SDK，也不改变人格、模型、TTS 或互动插件开关。`tests/test_agent_runtime.py` 用真实 SDK 验证 `full` 模式下无工具请求的普通/流式回复和统计初始化，无外部模型调用。升级框架并验证修复前，不要切回 `skills_like`。
+
 不要无鉴权公开面板或 OneBot。设备、电费后端若在同一宿主机，`.env` 中分别使用 `http://127.0.0.1:5000/DeviceStatus`、`http://127.0.0.1:5051`。systemd 从 `.env` 注入变量，不要在其中使用 shell 命令或变量展开。
 
 ## 从旧 AstrBot 容器一次性迁移
