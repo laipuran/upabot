@@ -1,7 +1,7 @@
 name: astrbot_plugin_qq_reaction_listener
 display_name: QQ Interaction Memory
 desc: QQ 群互动上下文与被戳即时文字回复，以及独立开关的戳人、贴表情聊天工具；总开关默认关闭。
-version: v0.4.0
+version: v0.4.1
 author: duckran
 support_platforms:
   - aiocqhttp

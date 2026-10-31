@@ -71,7 +71,6 @@ class QQReactionListenerPlugin(Star):
             and not self._registered
             and self.config.get("enabled", False)
             and self.config.get("tools_enabled", False)
-            and self.config.get("tool_groups", [])
         ):
             self._registered = build_tools(self.poke, self.react)
             self.context.add_llm_tools(*self._registered)
@@ -153,7 +152,9 @@ class QQReactionListenerPlugin(Star):
         if not self.config.get("tools_enabled", False):
             return False
         groups = self.config.get("tool_groups", [])
-        if not isinstance(groups, list) or event.get_group_id() not in {str(g) for g in groups}:
+        if not isinstance(groups, list):
+            return False
+        if groups and event.get_group_id() not in {str(g) for g in groups}:
             return False
         try:
             self.actions.source(event)

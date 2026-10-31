@@ -83,13 +83,13 @@ class InteractionPluginTests(unittest.IsolatedAsyncioTestCase):
         }
         return event
 
-    def chat(self):
-        event = FakeEvent("你怎么不理我", group="200")
+    def chat(self, group="200"):
+        event = FakeEvent("你怎么不理我", group=group)
         event.message_obj.raw_message = {
             "post_type": "message",
             "message_type": "group",
             "self_id": 999,
-            "group_id": 200,
+            "group_id": int(group),
             "user_id": 100,
             "message_id": 1,
         }
@@ -345,6 +345,49 @@ class InteractionPluginTests(unittest.IsolatedAsyncioTestCase):
         event.bot.call_action.return_value = {"result": 0}
         self.assertTrue((await self.plugin.poke(event)).sent)
 
+    async def test_enabled_tools_with_empty_allowlist_register_and_send(self):
+        self.plugin.config.update(tools_enabled=True, tool_groups=[])
+        await self.plugin.initialize()
+        self.assertEqual(set(self.tool_manager.names()), {POKE_TOOL, REACT_TOOL})
+        for group in ("200", "201"):
+            event = self.chat(group)
+            event.bot.call_action.return_value = {"result": 0}
+            request = ProviderRequest(func_tool=self.tool_manager)
+            await self.plugin.on_llm_request(event, request)
+            self.assertIs(request.func_tool, self.tool_manager)
+            self.assertTrue((await self.plugin.poke(event)).sent)
+            event.bot.call_action.assert_awaited_once()
+
+    async def test_empty_allowlist_does_not_bypass_tool_switch(self):
+        self.plugin.config.update(tools_enabled=False, tool_groups=[])
+        await self.plugin.initialize()
+        self.assertTrue(self.tool_manager.empty())
+        event = self.chat()
+        self.assertFalse((await self.plugin.poke(event)).sent)
+        event.bot.call_action.assert_not_awaited()
+
+    async def test_empty_allowlist_does_not_bypass_session_permission(self):
+        self.plugin.config.update(tools_enabled=True, tool_groups=[])
+        self.session_allowed.return_value = False
+        event = self.chat()
+        self.assertFalse((await self.plugin.poke(event)).sent)
+        event.bot.call_action.assert_not_awaited()
+
+    async def test_group_allowlist_rules(self):
+        self.plugin.config["tools_enabled"] = True
+        for groups, allowed in (
+            ([], True),
+            (["200"], True),
+            ([200], True),
+            (["201"], False),
+            (None, False),
+            ("200", False),
+            ({}, False),
+        ):
+            with self.subTest(groups=groups):
+                self.plugin.config["tool_groups"] = groups
+                self.assertEqual(await self.plugin._tools_allowed(self.chat()), allowed)
+
     async def test_tool_runtime_enforces_group_profile_and_session_permissions(self):
         self.plugin.config.update(tools_enabled=True, tool_groups=["200"])
         for mode in ("group", "profile", "session", "master", "runner"):
@@ -353,7 +396,7 @@ class InteractionPluginTests(unittest.IsolatedAsyncioTestCase):
                 self.settings.update(plugin_set=["*"], agent_runner={"runner_type": "local"})
                 self.session_allowed.return_value = True
                 if mode == "group":
-                    self.plugin.config["tool_groups"] = []
+                    self.plugin.config["tool_groups"] = ["201"]
                 elif mode == "profile":
                     self.settings["plugin_set"] = ["another_plugin"]
                 elif mode == "session":

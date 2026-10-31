@@ -1,12 +1,12 @@
 # QQ 互动：上下文与动作工具
 
-插件目录与标识：`plugins/astrbot_plugin_qq_reaction_listener/`；显示名 **QQ Interaction Memory**，版本 `v0.4.0`。目前仅支持 QQ 群聊，基于真实 AstrBot 4.29.3 SDK 开发。裸机部署脚本已包含此插件；当前服务器已显式启用感知与被戳回复，主动互动工具仍关闭，待配置群白名单后单独开启。
+插件目录与标识：`plugins/astrbot_plugin_qq_reaction_listener/`；显示名 **QQ Interaction Memory**，版本 `v0.4.1`。目前仅支持 QQ 群聊，基于真实 AstrBot 4.29.3 SDK 开发。裸机部署脚本已包含此插件，具体功能开关在 WebUI 管理。
 
-**默认关闭，未加入 Compose 挂载，未部署到机器人。** 本次没有修改设备、连接真实 QQ 或调用真实模型。
+**总开关和主动动作默认关闭。** 开启主动动作后，群白名单为空允许所有群，非空仅允许指定群；感知和被戳文字回复不受此白名单限制。
 
-## 两部分功能
+## 功能
 
-### 一、感知、附加上下文、被戳当场回复
+### 感知互动与被戳回复
 
 - 接收别人戳机器人的群通知，以及给机器人群消息新增/撤销表情回应。
 - 表情回应只更新短期记忆，不触发模型；用只读 `get_msg` 确认消息作者为当前机器人。给其他人的消息贴表情不记录，别人互戳不参与。
@@ -24,9 +24,9 @@
 
 互动块通过 `TextPart.mark_as_temp()` 交给模型，标准 AstrBot 历史序列化不会保存该块，也不会整表注入表情。戳事件通过明确标记“非用户文字”的触发提示进入原生会话，其正常回复可被记录；模型提供商、调试日志及其他插件的留存策略不由本插件控制。
 
-### 二、普通聊天的互动工具
+### 主动动作工具
 
-独立开启工具并填写群白名单后，模型可自主调用以下两个工具，没有对应的聊天命令。工具在 `initialize()` 中动态注册，关闭时不注册；请求阶段也按平台、群和会话权限过滤，实际调用时重新检查。人格或管理员没有授予的工具不会被强行追加进请求。
+开启插件总开关和“允许主动动作”后，模型可自主调用以下两个工具，没有对应的聊天命令。群白名单为空时允许所有群，非空时仅允许指定群；关闭主动动作时无论白名单如何均禁止发送。工具在 `initialize()` 中动态注册，关闭时不注册；请求阶段也按平台、群和会话权限过滤，实际调用时重新检查。人格或管理员没有授予的工具不会被强行追加进请求。
 
 #### `qq_interaction_poke`
 
@@ -77,24 +77,24 @@
 - 同一条真实 QQ 群消息最多尝试一个动作，戳和贴表情互斥；并发调用和模型重复调用也不能重复发送。
 - 默认同群间隔 3 秒、每群每分钟最多 12 次；整个插件实例工具尝试最多 60 次/分钟。
 - 校验通过后、网络调用前原子预占额度，发送失败或超时也占用额度，避免不确定投递后的重复发送。10 秒超时，插件不自动重试或补发。
-- 必须同时满足总开关、工具开关、群白名单、平台/真实消息来源、本地 Agent 模式、模型配置及会话插件权限。查引用/读权限期间来源或开关变化则拒绝操作。
+- 必须同时满足总开关、主动动作开关、群范围规则（空白名单不限群）、平台/真实消息来源、本地 Agent 模式、模型配置及会话插件权限。查引用/读权限期间来源或开关变化则重新校验当前规则。
 - 限额仅在本插件内共享，不能限制语音、其他插件或机器人正常文字聊天；也不把“已开始普通聊天”视为禁止被戳回复。冷却和去重是内存状态，重启后不保留。
 
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
 | `enabled` | `false` | 总开关 |
-| `context_enabled` | `true` | 第一部分：感知并自动附上下文 |
-| `poke_reply_enabled` | `true` | 第一部分开启时，被戳立即触发文字回复 |
+| `context_enabled` | `true` | 感知并自动附上下文 |
+| `poke_reply_enabled` | `true` | 感知开启时，被戳立即触发文字回复 |
 | `context_ttl_seconds` | `600` | 记忆有效秒数，10～3600 |
 | `poke_reply_cooldown_seconds` | `3` | 连戳防重复秒数，1～10；首个不等待 |
-| `tools_enabled` | `false` | 第二部分：注册普通聊天的互动工具 |
-| `tool_groups` | `[]` | 群号字符串列表；空列表禁止所有工具发送 |
+| `tools_enabled` | `false` | 允许 AI 在普通聊天中主动戳人、贴表情 |
+| `tool_groups` | `[]` | 群白名单；主动动作开启后，空列表允许所有群，非空仅允许指定群 |
 | `tool_cooldown_seconds` | `3` | 两工具共享发送间隔，1～60 秒 |
 | `tool_limit_per_minute` | `12` | 两工具共享每群每分钟尝试数，1～120 |
 
-只用感知与被戳回复：`enabled=true`，其他使用默认值。只用工具：`enabled=true`、`context_enabled=false`、`tools_enabled=true` 并填写 `tool_groups`。两部分都用则同时开启。配置保存后需要正常重载插件以更新注册状态。
+只用感知与被戳回复：`enabled=true`，其他使用默认值。允许所有群的主动动作：`enabled=true`、`tools_enabled=true`、`tool_groups=[]`；只允许指定群时填写 `tool_groups`。只用主动动作、不感知互动时另外设置 `context_enabled=false`。配置保存后需要正常重载插件以更新注册状态。
 
-从本地旧稿升级：`proactive_enabled`、`proactive_groups`、`proactive_reactions`、`merge_wait_seconds`、`proactive_cooldown_seconds`、`decision_timeout_seconds` 及旧 JSON 决策后台调度已移除，不再生效。旧群白名单不会自动启用工具，需明确设置新的 `tools_enabled` 和 `tool_groups`。总开关开启且感知启用后，戳回复默认立即生效；若只需静默记忆，设置 `poke_reply_enabled=false`。
+旧稿中的 `proactive_enabled`、`proactive_groups`、`proactive_reactions`、`merge_wait_seconds`、`proactive_cooldown_seconds`、`decision_timeout_seconds` 及旧 JSON 决策后台调度不再生效。主动动作由 `tools_enabled` 控制，`tool_groups` 仅用于缩小生效群范围。总开关开启且感知启用后，戳回复默认立即生效；若只需静默记忆，设置 `poke_reply_enabled=false`。
 
 ## 本地验证与尚未实测的范围
 
